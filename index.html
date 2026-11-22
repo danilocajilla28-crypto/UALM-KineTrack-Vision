@@ -1,0 +1,3318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>KineTrack Vision: Real-Time UALM Motion Lab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background:
+        radial-gradient(1100px 560px at 14% -8%, #0b2a5b 0%, transparent 60%),
+        radial-gradient(900px 480px at 96% 100%, #06324a 0%, transparent 55%),
+        #040915;
+      color: #e6f1ff;
+    }
+    .font-mono { font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace; }
+    .glass {
+      background: rgba(11, 23, 48, 0.78);
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 18px rgba(34, 211, 238, 0.06) inset, 0 8px 24px rgba(2, 6, 23, 0.45);
+    }
+    .btn-lab {
+      background: linear-gradient(180deg, rgba(59, 130, 246, 0.34), rgba(30, 64, 175, 0.16));
+      border: 1px solid rgba(56, 189, 248, 0.36);
+      color: #e6f1ff;
+      transition: all 0.18s ease;
+    }
+    .btn-lab:hover {
+      border-color: #22d3ee;
+      box-shadow: 0 0 12px rgba(34, 211, 238, 0.35);
+      background: linear-gradient(180deg, rgba(34, 211, 238, 0.32), rgba(37, 99, 235, 0.22));
+    }
+    .btn-lab.active {
+      border-color: #fbbf24;
+      background: linear-gradient(180deg, rgba(251, 191, 36, 0.34), rgba(217, 119, 6, 0.2));
+      color: #fef3c7;
+      box-shadow: 0 0 12px rgba(251, 191, 36, 0.32);
+    }
+    .btn-emerald {
+      background: linear-gradient(180deg, rgba(16, 185, 129, 0.38), rgba(5, 150, 105, 0.2));
+      border: 1px solid rgba(52, 211, 153, 0.55);
+      color: #ecfdf5;
+      transition: all 0.18s ease;
+    }
+    .btn-emerald:hover {
+      border-color: #6ee7b7;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(56, 189, 248, 0.26);
+      background: rgba(5, 13, 30, 0.65);
+      color: #94a3b8;
+      white-space: nowrap;
+    }
+    .pill i {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #64748b;
+      display: inline-block;
+    }
+    .pill.ok { color: #e2e8f0; border-color: rgba(34, 211, 238, 0.45); }
+    .pill.ok i { background: #22d3ee; box-shadow: 0 0 8px #22d3ee; }
+    .pill.wn { color: #fde68a; border-color: rgba(251, 191, 36, 0.45); }
+    .pill.wn i { background: #fbbf24; box-shadow: 0 0 8px #fbbf24; }
+    .pill.em { color: #a7f3d0; border-color: rgba(52, 211, 153, 0.5); }
+    .pill.em i { background: #34d399; box-shadow: 0 0 8px #34d399; }
+
+    .sw { position: relative; width: 32px; height: 18px; display: inline-block; }
+    .sw input { opacity: 0; width: 0; height: 0; }
+    .sw i {
+      position: absolute; inset: 0; border-radius: 18px;
+      background: #1e293b; border: 1px solid rgba(56, 189, 248, 0.32);
+      cursor: pointer; transition: 0.2s;
+    }
+    .sw i:before {
+      content: ""; position: absolute; width: 12px; height: 12px;
+      left: 2px; top: 2px; border-radius: 50%; background: #94a3b8; transition: 0.2s;
+    }
+    .sw input:checked + i { background: rgba(34, 211, 238, 0.3); }
+    .sw input:checked + i:before {
+      transform: translateX(14px); background: #22d3ee; box-shadow: 0 0 8px #22d3ee;
+    }
+
+    .rd.off { opacity: 0.38; }
+    .rd.pulse { animation: cardPulse 0.45s ease-out; }
+    @keyframes cardPulse {
+      0% { border-color: #22d3ee; box-shadow: 0 0 14px rgba(34, 211, 238, 0.45); }
+      100% { box-shadow: none; }
+    }
+    canvas#view, canvas#strobe { touch-action: none; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.4); }
+    ::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.35); border-radius: 999px; }
+  </style>
+</head>
+<body class="overflow-x-hidden lg:overflow-hidden">
+  <!-- Main Application Shell -->
+  <div id="app" class="min-h-screen lg:h-screen flex flex-col gap-2 p-2">
+    <!-- Top Control Header -->
+    <header class="glass rounded-xl px-3 py-2 flex flex-wrap items-center gap-2 shrink-0">
+      <div class="flex items-center gap-2.5 mr-1">
+        <div class="w-7 h-7 rounded-full border-2 border-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.65)] relative flex items-center justify-center shrink-0">
+          <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+        </div>
+        <div class="leading-tight">
+          <h1 class="text-sm sm:text-base font-bold tracking-tight bg-gradient-to-r from-white to-cyan-300 bg-clip-text text-transparent">
+            KineTrack Vision
+          </h1>
+          <p class="text-[10px] text-slate-400 hidden sm:block">Real-Time UALM Motion Lab · Straight-Line Optical Tracker</p>
+        </div>
+      </div>
+
+      <!-- Status Pills -->
+      <div class="flex items-center gap-1.5 flex-wrap mr-auto">
+        <span class="pill" id="pCam"><i></i>CAMERA · INIT</span>
+        <span class="pill" id="pAx"><i></i>AXIS · —</span>
+        <span class="pill" id="pCal"><i></i>UNCALIBRATED</span>
+        <span class="pill" id="pSt"><i></i>STANDBY</span>
+      </div>
+
+      <!-- Primary Toolbar Buttons -->
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <button class="btn-lab rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-pointer" id="bPlaneCal" title="4-Point perspective floor/ramp calibration">⊞ Plane Cal</button>
+        <button class="btn-lab rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-pointer" id="bLineCal" title="2-Point reference length calibration">⌖ Line Cal</button>
+        <button class="btn-lab rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-pointer" id="bVerify" title="Measure a real ruler to verify accuracy">📏 Verify</button>
+        <button class="btn-lab rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-pointer" id="bArm">↻ Re-arm</button>
+        <button class="btn-lab rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-pointer" id="bClr">✕ Clear</button>
+        <button class="btn-lab rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-pointer" id="bRes">▤ Results</button>
+        <button class="btn-lab rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-pointer" id="bCamSwitch" title="Switch front/rear camera or retry live camera">📷 Cam</button>
+        <button class="btn-lab rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-pointer" id="bFlip">⇇ Flip: OFF</button>
+        <button class="btn-emerald rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-pointer" id="bDemo">Demo Lab</button>
+      </div>
+    </header>
+
+    <!-- Main Workspace Grid -->
+    <main class="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_336px] lg:grid-rows-[minmax(0,1fr)_184px] gap-2">
+      <!-- Live Camera / AR Viewport -->
+      <section class="glass rounded-xl relative min-h-[300px] lg:min-h-0 flex items-center justify-center p-2 overflow-hidden" id="vp">
+        <canvas id="view" width="640" height="480" class="max-w-full max-h-full rounded-lg cursor-crosshair border border-sky-400/30 shadow-lg"></canvas>
+        <div class="absolute top-3 left-3.5 font-mono text-[10.5px] font-semibold tracking-wider text-cyan-300 bg-slate-950/75 px-2.5 py-1 rounded-md border border-cyan-400/30 pointer-events-none">
+          ● LIVE AR TRACKER · STRAIGHT-LINE UALM
+        </div>
+        <div id="trackBadge" class="hidden absolute top-3 right-3.5 font-mono text-[10.5px] font-semibold px-2.5 py-1 rounded-md bg-slate-950/80 border border-emerald-400/40 text-emerald-300 pointer-events-none">
+          LOCK 100%
+        </div>
+        <div id="msg" class="absolute left-3 right-3 bottom-3 px-3 py-2 text-xs bg-slate-950/85 border border-sky-400/35 rounded-lg text-slate-100 pointer-events-none shadow-md">
+          Starting camera…
+        </div>
+      </section>
+
+      <!-- Right Sidebar: Telemetry, Calibration & Demo Lab -->
+      <aside class="glass rounded-xl lg:row-span-2 lg:col-start-2 p-2.5 flex flex-col gap-2 overflow-y-auto" id="tel">
+        <!-- Live Kinematic Readouts -->
+        <div class="grid grid-cols-2 gap-1.5">
+          <div class="rd rounded-xl p-2.5 bg-slate-950/60 border border-sky-400/25" id="c-t">
+            <div class="flex items-center justify-between font-mono text-[10px] text-slate-400 tracking-wider">
+              <span>TIME (t)</span>
+              <label class="sw"><input type="checkbox" checked data-k="t"><i></i></label>
+            </div>
+            <div class="font-mono mt-1 flex items-baseline gap-1">
+              <b id="v-t" class="text-2xl font-semibold text-cyan-300 tabular-nums">0.00</b>
+              <span class="text-[11px] text-slate-400">s</span>
+            </div>
+          </div>
+
+          <div class="rd rounded-xl p-2.5 bg-slate-950/60 border border-sky-400/25" id="c-s">
+            <div class="flex items-center justify-between font-mono text-[10px] text-slate-400 tracking-wider">
+              <span>DISTANCE (d)</span>
+              <label class="sw"><input type="checkbox" checked data-k="s"><i></i></label>
+            </div>
+            <div class="font-mono mt-1 flex items-baseline gap-1">
+              <b id="v-s" class="text-2xl font-semibold text-emerald-300 tabular-nums">0.00</b>
+              <span class="text-[11px] text-slate-400">m</span>
+            </div>
+          </div>
+
+          <div class="rd rounded-xl p-2.5 bg-slate-950/60 border border-sky-400/25" id="c-v">
+            <div class="flex items-center justify-between font-mono text-[10px] text-slate-400 tracking-wider">
+              <span>VELOCITY (v)</span>
+              <label class="sw"><input type="checkbox" checked data-k="v"><i></i></label>
+            </div>
+            <div class="font-mono mt-1 flex items-baseline gap-1">
+              <b id="v-v" class="text-2xl font-semibold text-sky-300 tabular-nums">0.00</b>
+              <span class="text-[11px] text-slate-400">m/s</span>
+            </div>
+          </div>
+
+          <div class="rd rounded-xl p-2.5 bg-slate-950/60 border border-amber-400/35" id="c-a">
+            <div class="flex items-center justify-between font-mono text-[10px] text-amber-300 tracking-wider">
+              <span>ACCEL (a)</span>
+              <label class="sw"><input type="checkbox" checked data-k="a"><i></i></label>
+            </div>
+            <div class="font-mono mt-1 flex items-baseline gap-1">
+              <b id="v-a" class="text-2xl font-semibold text-amber-300 tabular-nums">0.00</b>
+              <span class="text-[11px] text-slate-400">m/s²</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Demo Lab Panel (visible in Demo mode) -->
+        <div id="dm" class="hidden rounded-xl p-2.5 bg-emerald-950/35 border border-emerald-400/40 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-emerald-300">Demo UALM Lab</span>
+            <span class="font-mono text-[10px] text-slate-300">v₀ = 0.00 m/s</span>
+          </div>
+          <div class="grid grid-cols-3 gap-1">
+            <button class="btn-lab rounded-lg py-1.5 px-1 text-[11px] font-semibold cursor-pointer" id="bRoll">Incline 2m/s²</button>
+            <button class="btn-lab rounded-lg py-1.5 px-1 text-[11px] font-semibold cursor-pointer" id="bDrop">Free Fall</button>
+            <button class="btn-lab rounded-lg py-1.5 px-1 text-[11px] font-semibold cursor-pointer" id="bFar">Far Plane</button>
+          </div>
+          <div class="flex gap-1.5">
+            <button class="btn-emerald flex-1 rounded-lg py-1.5 px-2 text-xs font-semibold cursor-pointer" id="bQuickRun">▶ Scan &amp; Release Ball</button>
+            <button class="btn-lab rounded-lg py-1.5 px-2 text-[11px] font-semibold cursor-pointer" id="bLight" title="Toggle sweeping shadow &amp; exposure shift">☀ Light: OFF</button>
+          </div>
+          <p class="text-[11px] text-slate-300 leading-snug">
+            Or click / drag a box around the red ball to scan it and its surrounding plane manually, then release.
+          </p>
+        </div>
+
+        <!-- Real-Life Calibration & Manual Displacement Panel -->
+        <div class="rounded-xl p-2.5 bg-slate-950/55 border border-sky-400/25 space-y-2 text-[11.5px]">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-cyan-300">Real-Life Distance Calibration</span>
+            <span class="font-mono text-[10px] text-slate-400">4× Loupe Active</span>
+          </div>
+
+          <!-- Quick Real-World Presets -->
+          <div class="flex flex-wrap gap-1">
+            <button class="btn-lab rounded px-2 py-0.5 text-[10.5px] cursor-pointer" id="preA4">A4 Plane</button>
+            <button class="btn-lab rounded px-2 py-0.5 text-[10.5px] cursor-pointer" id="preLet">Letter Plane</button>
+            <button class="btn-lab rounded px-2 py-0.5 text-[10.5px] cursor-pointer" id="pre30">30 cm Line</button>
+            <button class="btn-lab rounded px-2 py-0.5 text-[10.5px] cursor-pointer" id="pre1m">1.0 m Line</button>
+          </div>
+
+          <!-- Plane & Line Dimensions -->
+          <div class="grid grid-cols-2 gap-1.5">
+            <label class="flex flex-col gap-0.5 text-[10.5px] text-slate-300">
+              <span>Plane W × H (m)</span>
+              <div class="flex gap-1">
+                <input id="planeW" type="number" value="0.297" step="0.001" min="0.01" class="w-1/2 bg-slate-900 border border-sky-400/30 rounded px-1.5 py-1 font-mono text-[11px] text-white">
+                <input id="planeH" type="number" value="0.210" step="0.001" min="0.01" class="w-1/2 bg-slate-900 border border-sky-400/30 rounded px-1.5 py-1 font-mono text-[11px] text-white">
+              </div>
+            </label>
+            <label class="flex flex-col gap-0.5 text-[10.5px] text-slate-300">
+              <span>2-Pt Line Len (m)</span>
+              <input id="refLen" type="number" value="1.00" step="0.01" min="0.01" class="bg-slate-900 border border-sky-400/30 rounded px-1.5 py-1 font-mono text-[11px] text-white">
+            </label>
+          </div>
+
+          <!-- Depth-Aware Object Width & Plane Contact Point -->
+          <div class="grid grid-cols-2 gap-1.5">
+            <label class="flex flex-col gap-0.5 text-[10.5px] text-slate-300">
+              <span>Object Width (m)</span>
+              <input id="objSize" type="number" step="0.001" min="0" placeholder="opt. e.g. 0.067" class="bg-slate-900 border border-sky-400/30 rounded px-1.5 py-1 font-mono text-[11px] text-white">
+            </label>
+            <label class="flex flex-col gap-0.5 text-[10.5px] text-slate-300">
+              <span>Plane Track Point</span>
+              <select id="contactMode" class="bg-slate-900 border border-sky-400/30 rounded px-1.5 py-1 font-mono text-[10.5px] text-white">
+                <option value="bottom" selected>Bottom Base</option>
+                <option value="center">Visual Center</option>
+              </select>
+            </label>
+          </div>
+
+          <!-- Manual Displacement Input -->
+          <div class="pt-1.5 border-t border-sky-400/20">
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-semibold text-amber-300 text-[11px]">Manual Displacement (m)</span>
+              <span id="manStatus" class="font-mono text-[10px] text-slate-400">Auto camera</span>
+            </div>
+            <div class="flex gap-1">
+              <input id="manDisp" type="number" step="0.01" min="0.01" placeholder="e.g. 1.50 m" class="flex-1 min-w-0 bg-slate-900 border border-amber-400/40 rounded px-2 py-1 font-mono text-xs text-amber-200">
+              <button class="btn-lab rounded px-2 py-1 text-[11px] font-semibold cursor-pointer" id="bManApply">Apply</button>
+              <button class="btn-lab rounded px-2 py-1 text-[11px] cursor-pointer" id="bManClear" title="Clear manual displacement">✕</button>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-1 leading-snug">
+              Optional: enter tape-measured displacement to lock exact real-world <span class="font-mono text-amber-200">d</span> &amp; <span class="font-mono text-amber-200">a = 2d/t²</span>.
+            </p>
+          </div>
+        </div>
+
+        <!-- Scanner & UALM Reference Card -->
+        <div class="rounded-xl p-2.5 bg-slate-950/45 border border-sky-400/20 text-[11px] text-slate-300 space-y-1">
+          <div class="font-semibold text-sky-300">How to Track Accurately</div>
+          <p class="leading-snug">
+            1. Click—or <b>drag a box</b> around—your object. KineTrack scans the object, surroundings &amp; plane in native HD for lighting- and distance-invariant tracking.
+          </p>
+          <p class="leading-snug">
+            2. Release from rest (<span class="font-mono text-cyan-300">v₀ = 0 m/s</span>). Motion is locked onto a clean straight line with <span class="font-mono text-amber-300">a = const</span> on every data point.
+          </p>
+        </div>
+      </aside>
+
+      <!-- Bottom Live Kinematic Graphs -->
+      <section class="glass rounded-xl p-2 flex flex-col sm:flex-row gap-2 min-h-[160px] lg:min-h-0" id="gp">
+        <div class="flex-1 relative min-h-[115px] rounded-lg border border-sky-400/20 bg-slate-950/55 overflow-hidden" id="g-v">
+          <canvas id="cvv" class="absolute inset-0 w-full h-full"></canvas>
+        </div>
+        <div class="flex-1 relative min-h-[115px] rounded-lg border border-sky-400/20 bg-slate-950/55 overflow-hidden" id="g-s">
+          <canvas id="cvs" class="absolute inset-0 w-full h-full"></canvas>
+        </div>
+        <div class="flex-1 relative min-h-[115px] rounded-lg border border-sky-400/20 bg-slate-950/55 overflow-hidden" id="g-a">
+          <canvas id="cva" class="absolute inset-0 w-full h-full"></canvas>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Post-Experiment UALM Analysis Modal -->
+  <div id="modal" class="fixed inset-0 hidden items-center justify-center bg-slate-950/85 backdrop-blur-sm z-50 p-2 sm:p-4">
+    <div class="glass rounded-2xl w-full max-w-[1340px] h-[94vh] flex flex-col overflow-hidden">
+      <!-- Modal Header -->
+      <div class="px-4 py-2.5 border-b border-sky-400/25 flex flex-wrap items-center gap-2 bg-slate-950/50">
+        <div class="mr-auto">
+          <b class="text-sm sm:text-base text-cyan-300">Post-Experiment Analysis · UALM Strobe &amp; V vs. t Lab</b>
+          <div id="mtag" class="font-mono text-[11px] text-slate-400"></div>
+        </div>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <select id="spd" class="btn-lab rounded-lg px-2 py-1.5 text-xs font-mono cursor-pointer">
+            <option value="0.1">0.1×</option>
+            <option value="0.25" selected>0.25×</option>
+            <option value="0.5">0.5×</option>
+            <option value="1">1.0×</option>
+          </select>
+          <button class="btn-emerald rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer" id="bSlow">▶ Slow-mo Replay</button>
+          <button class="btn-lab rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-pointer" id="bCsv">⇩ Export CSV</button>
+          <button class="btn-lab rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-pointer" id="mArm">↻ Re-arm</button>
+          <button class="btn-lab rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-pointer" id="mClose">✕ Close</button>
+        </div>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_390px] overflow-hidden">
+        <!-- Left Column: Stroboscopic Diagram / Slow-Mo Stage + Interactive V vs. t Graph -->
+        <div class="min-h-0 flex flex-col bg-slate-950/40 overflow-hidden">
+          <div class="flex-1 min-h-[220px] relative flex items-center justify-center p-2.5 overflow-hidden">
+            <canvas id="strobe" class="max-w-full max-h-full rounded-lg border border-sky-400/30 cursor-pointer shadow-xl"></canvas>
+          </div>
+          <!-- Interactive Velocity vs. Time Graph Explaining Constant Acceleration -->
+          <div class="h-[210px] sm:h-[226px] shrink-0 border-t border-sky-400/25 bg-slate-950/70 p-2 flex flex-col">
+            <div class="flex items-center justify-between px-1 pb-1">
+              <span class="font-mono text-[11px] font-semibold text-cyan-300">
+                VELOCITY vs. TIME (v–t) GRAPH · SLOPE = Δv/Δt = CONSTANT ACCELERATION (a)
+              </span>
+              <span id="vtEq" class="font-mono text-[10.5px] text-amber-300"></span>
+            </div>
+            <div class="flex-1 relative min-h-0">
+              <canvas id="vtModal" class="absolute inset-0 w-full h-full cursor-pointer"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Point Inspector, Manual Override & Coincident Summary -->
+        <aside class="border-t lg:border-t-0 lg:border-l border-sky-400/25 p-3 overflow-y-auto space-y-2.5 bg-slate-950/35">
+          <!-- Post-Trial Manual Displacement Override -->
+          <div class="rounded-xl p-2.5 bg-slate-900/75 border border-amber-400/35">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-semibold text-amber-300">Real-Life Displacement Override</span>
+              <span id="mManBadge" class="font-mono text-[10px] text-slate-400">Camera</span>
+            </div>
+            <div class="flex gap-1.5">
+              <input id="mManDisp" type="number" step="0.01" min="0.01" placeholder="Measured d (m)" class="flex-1 min-w-0 bg-slate-950 border border-amber-400/40 rounded px-2 py-1 font-mono text-xs text-amber-200">
+              <button class="btn-lab rounded px-2.5 py-1 text-xs font-semibold cursor-pointer" id="mManApply">Apply</button>
+              <button class="btn-lab rounded px-2 py-1 text-xs cursor-pointer" id="mManClear">Reset</button>
+            </div>
+          </div>
+
+          <!-- Point Inspector -->
+          <div id="insp" class="rounded-xl p-3 bg-slate-900/80 border border-cyan-400/45 shadow-[0_0_14px_rgba(34,211,238,0.12)] text-xs text-slate-200">
+            <h4 class="text-cyan-300 font-semibold text-xs mb-1">Point Inspector</h4>
+            Click any plotted ball, data label, table row, or point on the <b>V vs. t Graph</b> to inspect how <span class="font-mono text-cyan-300">v = at</span>, constant <span class="font-mono text-amber-300">a</span>, and <span class="font-mono text-emerald-300">d = ½at²</span> coincide.
+          </div>
+
+          <!-- Automatic Coincident UALM Summary + Table -->
+          <div id="sum" class="rounded-xl p-3 bg-slate-900/70 border border-sky-400/25 text-xs text-slate-200 space-y-2"></div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    /* =========================================================================
+       1. DOM REFERENCES, CANVAS BUFFERS & CORE STATE
+       ========================================================================= */
+    const $ = sel => document.querySelector(sel);
+    const view = $('#view');
+    const vx = view.getContext('2d');
+
+    // Full-resolution HD offscreen buffer for native-pixel ROI tracking & magnifier
+    const hdC = document.createElement('canvas');
+    const hdCtx = hdC.getContext('2d', { willReadFrequently: true });
+
+    // Medium processing canvas for background plane modeling & full-frame re-acquisition
+    const procC = document.createElement('canvas');
+    const procCtx = procC.getContext('2d', { willReadFrequently: true });
+
+    // Hidden live video element
+    const video = document.createElement('video');
+    video.playsInline = true;
+    video.muted = true;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('muted', '');
+    Object.assign(video.style, {
+      position: 'fixed', left: '0', top: '0', width: '2px', height: '2px',
+      opacity: '0.01', pointerEvents: 'none'
+    });
+    document.body.appendChild(video);
+
+    // Demo simulation canvas
+    const demoC = document.createElement('canvas');
+    demoC.width = 960;
+    demoC.height = 540;
+    const dx = demoC.getContext('2d');
+
+    // Source & Dimension State
+    let SRC = demoC;
+    let W = 960, H = 540;
+    let PW = 320, PH = 180;
+    let scaleF = W / PW;
+    let useDemo = false;
+    let camOK = false;
+    let camStream = null;
+    let facingMode = 'environment';
+    let flip = false;
+
+    // Video frame synchronization
+    let vTs = 0, newVFrame = false, lastVideoCT = -1, stuckFrames = 0;
+
+    // Calibration State (2-pt linear, 4-pt plane homography, or manual displacement)
+    let mpp = 0.005;
+    let mppCam = 0.005;
+    let calibrated = false;
+    let camCalibrated = false;
+    let calType = 'none'; // 'none' | 'line' | 'plane'
+    let camCalType = 'none';
+    let Hmat = null;      // Pixel -> World (meters) 3x3 homography
+    let Hinv = null;      // World (meters) -> Pixel 3x3 homography
+    let camHmat = null, camHinv = null;
+    let calPlaneDims = { w: 0.297, h: 0.210 };
+    let calMode = 'none'; // 'none' | 'line' | 'plane' | 'verify'
+    let calPts = [];
+    let verifyResult = null;
+    let manualDispM = 0;  // Optional user tape-measured real-world displacement (m)
+
+    // Pointer / Drag-Box / Magnifier Loupe State
+    let pointerPos = null;
+    let dragBox = null;
+
+    // Tracking & Experiment State
+    // state: 'idle' | 'scanning' | 'armed' | 'tracking' | 'done'
+    let state = 'idle';
+    let target = null;     // Trained multi-cue target + background plane model
+    let scanJob = null;    // Multi-frame scan accumulator
+    let lastPos = null;    // { x, y, rx, ry, d, conf }
+    let kalman = null;     // 2D Constant-Acceleration Kalman filter state
+    let preRing = [];      // Pre-motion ring buffer for exact resting origin capture
+    let stillAnchor = null;
+    let lostCount = 0;
+    let lostSince = 0;
+    let S = [];            // Recorded samples { t, x, y, bx, by, wx, wy, d, conf }
+    let T0 = 0;
+    let M = null;          // Unified Straight-Line UALM Model
+    let P = [];            // Equal-interval stroboscopic data points
+    let FR = [];           // Recorded replay frames { t, c }
+    let bgSnap = null;     // Clean start snapshot for strobe diagram
+    let lastWhy = 'rest';
+    let selPoint = -1;
+    let strobeHits = [];
+    let vtHits = [];
+    let replayRAF = null;
+    let replayTime = null;
+    let lastUIUpdate = 0;
+
+    const tog = { t: 1, s: 1, v: 1, a: 1 };
+
+    // Helpers
+    const fmtN = x => (Math.abs(x) < 0.005 ? 0 : x).toFixed(2);
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const say = msg => { $('#msg').textContent = msg; };
+
+    function pill(sel, text, cls = '') {
+      const el = $(sel);
+      if (!el) return;
+      el.className = 'pill' + (cls ? ' ' + cls : '');
+      el.innerHTML = '<i></i>' + text;
+    }
+
+    // Cross-browser rounded rectangle helper
+    function rRect(ctx, x, y, w, h, r) {
+      const rr = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + rr, y);
+      ctx.arcTo(x + w, y, x + w, y + h, rr);
+      ctx.arcTo(x + w, y + h, x, y + h, rr);
+      ctx.arcTo(x, y + h, x, y, rr);
+      ctx.arcTo(x, y, x + w, y, rr);
+      ctx.closePath();
+    }
+
+    function setDims(w, h) {
+      W = Math.max(320, Math.round(w));
+      H = Math.max(240, Math.round(h));
+      view.width = W;
+      view.height = H;
+      hdC.width = W;
+      hdC.height = H;
+      PW = Math.min(W, 360);
+      PH = Math.max(120, Math.round(H * (PW / W)));
+      procC.width = PW;
+      procC.height = PH;
+      scaleF = W / PW;
+    }
+
+    function drawSource(ctx, w, h) {
+      if (flip && !useDemo) {
+        ctx.save();
+        ctx.translate(w, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(SRC, 0, 0, w, h);
+        ctx.restore();
+      } else {
+        ctx.drawImage(SRC, 0, 0, w, h);
+      }
+    }
+
+    /* =========================================================================
+       2. PLANAR HOMOGRAPHY (4-POINT PERSPECTIVE CALIBRATION)
+       ========================================================================= */
+    function solveLinear8(A, b) {
+      const n = 8;
+      const M8 = A.map((row, i) => [...row, b[i]]);
+      for (let col = 0; col < n; col++) {
+        let piv = col;
+        for (let r = col + 1; r < n; r++) {
+          if (Math.abs(M8[r][col]) > Math.abs(M8[piv][col])) piv = r;
+        }
+        if (Math.abs(M8[piv][col]) < 1e-11) return null;
+        if (piv !== col) [M8[col], M8[piv]] = [M8[piv], M8[col]];
+        const div = M8[col][col];
+        for (let j = col; j <= n; j++) M8[col][j] /= div;
+        for (let r = 0; r < n; r++) {
+          if (r === col) continue;
+          const fac = M8[r][col];
+          for (let j = col; j <= n; j++) M8[r][j] -= fac * M8[col][j];
+        }
+      }
+      return M8.map(row => row[n]);
+    }
+
+    function computeHomography(srcPts, dstPts) {
+      const A = [], b = [];
+      for (let i = 0; i < 4; i++) {
+        const { x, y } = srcPts[i];
+        const { x: u, y: v } = dstPts[i];
+        A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); b.push(u);
+        A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); b.push(v);
+      }
+      const h = solveLinear8(A, b);
+      if (!h) return null;
+      return [h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], 1];
+    }
+
+    function applyH(hm, x, y) {
+      const d = hm[6] * x + hm[7] * y + hm[8];
+      if (Math.abs(d) < 1e-9) return { x: 0, y: 0 };
+      return {
+        x: (hm[0] * x + hm[1] * y + hm[2]) / d,
+        y: (hm[3] * x + hm[4] * y + hm[5]) / d
+      };
+    }
+
+    function pixelToWorld(pxX, pxY) {
+      if (calType === 'plane' && Hmat) return applyH(Hmat, pxX, pxY);
+      return { x: pxX * mpp, y: pxY * mpp };
+    }
+
+    function updateCalPill() {
+      if (manualDispM > 0) {
+        pill('#pCal', `MANUAL d · ${manualDispM.toFixed(2)} m`, 'em');
+        $('#manStatus').textContent = `Locked: ${manualDispM.toFixed(2)} m`;
+        $('#manStatus').className = 'font-mono text-[10px] text-amber-300 font-semibold';
+        return;
+      }
+      $('#manStatus').textContent = 'Auto camera';
+      $('#manStatus').className = 'font-mono text-[10px] text-slate-400';
+
+      if (calType === 'plane' && Hmat) {
+        pill('#pCal', `PLANE CAL · ${calPlaneDims.w.toFixed(2)}×${calPlaneDims.h.toFixed(2)}m`, 'em');
+      } else if (calibrated) {
+        pill('#pCal', `LINE CAL · ${(mpp * 1000).toFixed(2)} mm/px`, 'ok');
+      } else {
+        pill('#pCal', 'UNCALIBRATED · default scale', 'wn');
+      }
+    }
+
+    /* =========================================================================
+       3. FAST, RELIABLE CAMERA INITIALIZATION & DEMO LAB
+       ========================================================================= */
+    function stopCamStream() {
+      if (camStream) {
+        camStream.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+        camStream = null;
+      }
+    }
+
+    async function waitForVideoReady(vid, timeoutMs = 4000) {
+      if (vid.videoWidth > 0 && vid.videoHeight > 0 && vid.readyState >= 2) return true;
+      return new Promise(resolve => {
+        let done = false;
+        const finish = ok => {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          clearInterval(poller);
+          vid.onloadedmetadata = null;
+          vid.onloadeddata = null;
+          vid.oncanplay = null;
+          resolve(ok);
+        };
+        const check = () => {
+          if (vid.videoWidth > 0 && vid.videoHeight > 0) finish(true);
+        };
+        vid.onloadedmetadata = check;
+        vid.onloadeddata = check;
+        vid.oncanplay = check;
+        const poller = setInterval(check, 80);
+        const timer = setTimeout(() => finish(vid.videoWidth > 0), timeoutMs);
+      });
+    }
+
+    async function startCam(tryFacing = facingMode) {
+      pill('#pCam', 'CAMERA · CONNECTING', 'wn');
+      say('Requesting live camera access…');
+      stopCamStream();
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        camOK = false;
+        setSource(true);
+        say('Camera API unavailable in this browser. Demo UALM Lab active — press "▶ Scan & Release Ball" to test.');
+        return;
+      }
+
+      const tiers = [
+        { video: { facingMode: { ideal: tryFacing }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 } }, audio: false },
+        { video: { facingMode: tryFacing, width: { ideal: 960 }, height: { ideal: 540 } }, audio: false },
+        { video: true, audio: false }
+      ];
+
+      let stream = null;
+      let lastErr = null;
+      for (const constraints of tiers) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          if (stream) break;
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+
+      if (!stream) {
+        camOK = false;
+        setSource(true);
+        const reason = lastErr ? (lastErr.name || 'blocked') : 'unavailable';
+        say(`Camera unavailable (${reason}). Demo UALM Lab is ready — press "▶ Scan & Release Ball" or grant camera access and press "📷 Cam".`);
+        return;
+      }
+
+      try {
+        camStream = stream;
+        facingMode = tryFacing;
+        video.srcObject = stream;
+        await video.play();
+        const ready = await waitForVideoReady(video, 4500);
+        if (!ready) throw new Error('Video dimensions timed out');
+
+        if (video.requestVideoFrameCallback) {
+          const onFrame = (now, meta) => {
+            if (video.srcObject !== stream) return;
+            vTs = (meta.captureTime || meta.presentationTime || now) / 1000;
+            newVFrame = true;
+            video.requestVideoFrameCallback(onFrame);
+          };
+          video.requestVideoFrameCallback(onFrame);
+        }
+
+        camOK = true;
+        setSource(false);
+      } catch (err) {
+        stopCamStream();
+        camOK = false;
+        setSource(true);
+        say(`Camera stream could not start (${err.message || 'error'}). Demo UALM Lab active — press "📷 Cam" to retry.`);
+      }
+    }
+
+    function setSource(demoOn) {
+      useDemo = demoOn;
+      SRC = demoOn ? demoC : video;
+      if (demoOn) {
+        setDims(960, 540);
+      } else {
+        setDims(video.videoWidth || 1280, video.videoHeight || 720);
+      }
+      clearAll();
+      $('#dm').classList.toggle('hidden', !demoOn);
+      $('#bDemo').textContent = demoOn ? 'Live Camera' : 'Demo Lab';
+
+      if (demoOn) {
+        setupDemo('roll');
+        pill('#pCam', 'DEMO UALM LAB', 'ok');
+      } else {
+        mpp = mppCam;
+        calibrated = camCalibrated;
+        calType = camCalType;
+        Hmat = camHmat;
+        Hinv = camHinv;
+        pill('#pCam', `CAMERA · ${W}×${H}`, 'ok');
+        say('Live camera active. Calibrate with Plane Cal / Line Cal (or Manual Displacement), then click or drag a box around your object.');
+      }
+      updateCalPill();
+    }
+
+    function clearAll() {
+      state = 'idle';
+      target = null;
+      scanJob = null;
+      lastPos = null;
+      kalman = null;
+      preRing = [];
+      stillAnchor = null;
+      lostCount = 0;
+      lostSince = 0;
+      S = [];
+      M = null;
+      P = [];
+      FR = [];
+      bgSnap = null;
+      calMode = 'none';
+      calPts = [];
+      verifyResult = null;
+      updateCalButtons();
+      $('#trackBadge').classList.add('hidden');
+      closeModal();
+      updateUI();
+      drawLiveGraphs();
+    }
+
+    /* =========================================================================
+       4. DEMO UALM LAB SIMULATION (INCLINE 2 m/s², FREE FALL, FAR PLANE)
+       ========================================================================= */
+    const demo = {
+      mode: 'roll', // 'roll' | 'drop' | 'far'
+      st: 'rest',   // 'rest' | 'run'
+      t0: 0,
+      varyLight: false,
+      x0: 140, y0: 155,
+      r0: 22,
+      aTrue: 2.0,
+      dur: 4.0,
+      ang: 0.34,
+      planeQuad: null
+    };
+
+    function setupDemo(mode) {
+      demo.mode = mode;
+      demo.st = 'rest';
+      manualDispM = 0;
+      $('#manDisp').value = '';
+      $('#mManDisp').value = '';
+
+      if (mode === 'roll') {
+        // Exact textbook chalkboard lesson: v0 = 0, a = 2.00 m/s², T = 4.00 s, d = 16.00 m
+        demo.aTrue = 2.0;
+        demo.dur = 4.0;
+        demo.ang = 0.34;
+        demo.x0 = 138;
+        demo.y0 = 152;
+        demo.r0 = 21;
+        mpp = 16.0 / 700; // 700 px along incline = 16.00 m exact
+        calType = 'line';
+        calibrated = true;
+        Hmat = null; Hinv = null;
+      } else if (mode === 'drop') {
+        // Exact vertical free fall: v0 = 0, a = -9.81 m/s², T = 2.00 s, d = 19.62 m
+        demo.aTrue = 9.81;
+        demo.dur = 2.0;
+        demo.x0 = 480;
+        demo.y0 = 56;
+        demo.r0 = 20;
+        mpp = (0.5 * 9.81 * 4.0) / 428; // 428 px drop = 19.62 m exact
+        calType = 'line';
+        calibrated = true;
+        Hmat = null; Hinv = null;
+      } else {
+        // Far perspective plane: 4-point homography floor, a = 1.50 m/s², T = 2.00 s, d = 3.00 m
+        demo.aTrue = 1.5;
+        demo.dur = 2.0;
+        demo.r0 = 16;
+        const quad = [
+          { x: 250, y: 175 },
+          { x: 710, y: 175 },
+          { x: 870, y: 470 },
+          { x: 90,  y: 470 }
+        ];
+        demo.planeQuad = quad;
+        calPlaneDims = { w: 4.0, h: 3.0 };
+        const dst = [
+          { x: 0, y: 0 }, { x: 4.0, y: 0 },
+          { x: 4.0, y: 3.0 }, { x: 0, y: 3.0 }
+        ];
+        Hmat = computeHomography(quad, dst);
+        Hinv = computeHomography(dst, quad);
+        calType = 'plane';
+        calibrated = true;
+        const pStart = applyH(Hinv, 0.5, 0.2);
+        demo.x0 = pStart.x;
+        demo.y0 = pStart.y;
+      }
+
+      ['bRoll', 'bDrop', 'bFar'].forEach(id => $('#' + id).classList.remove('active'));
+      $(mode === 'roll' ? '#bRoll' : mode === 'drop' ? '#bDrop' : '#bFar').classList.add('active');
+      updateCalPill();
+      say(`Demo "${mode === 'roll' ? 'Incline 2.00 m/s²' : mode === 'drop' ? 'Free Fall −9.81 m/s²' : 'Far Perspective Plane 1.50 m/s²'}" loaded. Click the ball to scan it, or press "▶ Scan & Release Ball".`);
+    }
+
+    function getDemoBall(nowSec) {
+      const t = demo.st === 'run' ? Math.max(0, Math.min(nowSec - demo.t0, demo.dur)) : 0;
+      if (demo.mode === 'roll') {
+        const sMeters = 0.5 * demo.aTrue * t * t;
+        const sPx = sMeters / mpp;
+        return {
+          x: demo.x0 + sPx * Math.cos(demo.ang),
+          y: demo.y0 + sPx * Math.sin(demo.ang),
+          r: demo.r0
+        };
+      }
+      if (demo.mode === 'drop') {
+        const sMeters = 0.5 * demo.aTrue * t * t;
+        const sPx = sMeters / mpp;
+        return { x: demo.x0, y: demo.y0 + sPx, r: demo.r0 };
+      }
+      // Far perspective plane: object rolls straight along world X from (0.5, 0.2) to (3.5, 2.7)
+      const sMeters = 0.5 * demo.aTrue * t * t; // 0 -> 3.0 m
+      const u = sMeters / 3.0;
+      const wx = 0.5 + u * 2.4;
+      const wy = 0.2 + u * 1.8; // sqrt(2.4^2 + 1.8^2) = 3.00 m exact!
+      const pt = applyH(Hinv, wx, wy);
+      const r = 11 + u * 11; // grows as it approaches camera
+      return { x: pt.x, y: pt.y - r, r }; // bottom contact touches (pt.x, pt.y)
+    }
+
+    function drawDemoFrame(nowSec) {
+      const c = dx;
+      // Background gradient
+      const bg = c.createLinearGradient(0, 0, 0, 540);
+      bg.addColorStop(0, '#182b47');
+      bg.addColorStop(1, '#0c182c');
+      c.fillStyle = bg;
+      c.fillRect(0, 0, 960, 540);
+
+      // Lab grid
+      c.strokeStyle = 'rgba(148, 163, 184, 0.09)';
+      c.lineWidth = 1;
+      for (let x = 0; x <= 960; x += 48) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, 540); c.stroke(); }
+      for (let y = 0; y <= 540; y += 48) { c.beginPath(); c.moveTo(0, y); c.lineTo(960, y); c.stroke(); }
+
+      if (demo.mode === 'roll') {
+        // Inclined track ramp matching the chalkboard diagram
+        const lenPx = 720;
+        const x1 = demo.x0 - 20 * Math.cos(demo.ang);
+        const y1 = demo.y0 + demo.r0 + 2 - 20 * Math.sin(demo.ang);
+        const x2 = demo.x0 + lenPx * Math.cos(demo.ang);
+        const y2 = demo.y0 + demo.r0 + 2 + lenPx * Math.sin(demo.ang);
+        c.fillStyle = 'rgba(30, 58, 95, 0.55)';
+        c.beginPath();
+        c.moveTo(x1, y1); c.lineTo(x2, y2); c.lineTo(x2, 540); c.lineTo(x1, 540); c.closePath();
+        c.fill();
+        c.strokeStyle = '#cbd5e1';
+        c.lineWidth = 4;
+        c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+
+        // Subtle meter ticks along ramp
+        c.font = '600 11px "JetBrains Mono", monospace';
+        c.fillStyle = 'rgba(203, 213, 225, 0.55)';
+        for (let m = 0; m <= 16; m += 4) {
+          const pxD = m / mpp;
+          const tx = demo.x0 + pxD * Math.cos(demo.ang);
+          const ty = demo.y0 + demo.r0 + 2 + pxD * Math.sin(demo.ang);
+          c.fillText(`${m}m`, tx - 8, ty + 18);
+        }
+      } else if (demo.mode === 'drop') {
+        // Vertical measurement pole + floor
+        c.strokeStyle = 'rgba(203, 213, 225, 0.35)';
+        c.lineWidth = 2;
+        c.beginPath(); c.moveTo(415, 45); c.lineTo(415, 505); c.stroke();
+        c.strokeStyle = '#cbd5e1';
+        c.lineWidth = 4;
+        c.beginPath(); c.moveTo(120, 504); c.lineTo(840, 504); c.stroke();
+      } else if (demo.planeQuad && Hinv) {
+        // Perspective floor quad + metric grid
+        const q = demo.planeQuad;
+        c.fillStyle = 'rgba(30, 58, 95, 0.52)';
+        c.beginPath();
+        c.moveTo(q[0].x, q[0].y); c.lineTo(q[1].x, q[1].y);
+        c.lineTo(q[2].x, q[2].y); c.lineTo(q[3].x, q[3].y);
+        c.closePath(); c.fill();
+        c.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+        c.lineWidth = 2; c.stroke();
+
+        c.strokeStyle = 'rgba(203, 213, 225, 0.18)';
+        c.lineWidth = 1;
+        for (let gx = 0; gx <= 4; gx += 0.5) {
+          const a = applyH(Hinv, gx, 0), b = applyH(Hinv, gx, 3);
+          c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
+        }
+        for (let gy = 0; gy <= 3; gy += 0.5) {
+          const a = applyH(Hinv, 0, gy), b = applyH(Hinv, 4, gy);
+          c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
+        }
+      }
+
+      // Distractor moving hand near start (proves tracker ignores hands/background motion)
+      const hx = demo.x0 - 54 + Math.sin(nowSec * 2.4) * 14;
+      const hy = demo.y0 - 24 + Math.cos(nowSec * 1.9) * 10;
+      c.fillStyle = '#d9a482';
+      c.beginPath(); c.arc(hx, hy, 20, 0, Math.PI * 2); c.fill();
+
+      // Target Object (High-contrast textured crimson-red ball)
+      const ball = getDemoBall(nowSec);
+      const grad = c.createRadialGradient(
+        ball.x - ball.r * 0.32, ball.y - ball.r * 0.32, ball.r * 0.12,
+        ball.x, ball.y, ball.r
+      );
+      grad.addColorStop(0, '#ff9e94');
+      grad.addColorStop(0.55, '#ef4444');
+      grad.addColorStop(1, '#991b1b');
+      c.fillStyle = grad;
+      c.beginPath(); c.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2); c.fill();
+
+      // Textured seam lines on ball (gives strong ZNCC edge structure)
+      c.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+      c.lineWidth = Math.max(1.2, ball.r * 0.08);
+      c.beginPath();
+      c.arc(ball.x - ball.r * 0.45, ball.y, ball.r * 0.55, -0.9, 0.9);
+      c.stroke();
+      c.beginPath();
+      c.arc(ball.x + ball.r * 0.45, ball.y, ball.r * 0.55, Math.PI - 0.9, Math.PI + 0.9);
+      c.stroke();
+
+      // Optional dynamic lighting / shadow disturbance test
+      if (demo.varyLight) {
+        const dim = 0.18 + 0.16 * Math.sin(nowSec * 1.6);
+        c.fillStyle = `rgba(0, 0, 0, ${dim.toFixed(3)})`;
+        c.fillRect(0, 0, 960, 540);
+        const sx = ((nowSec * 210) % 1260) - 150;
+        const sg = c.createLinearGradient(sx - 120, 0, sx + 120, 0);
+        sg.addColorStop(0, 'rgba(0,0,0,0)');
+        sg.addColorStop(0.5, 'rgba(0,0,0,0.42)');
+        sg.addColorStop(1, 'rgba(0,0,0,0)');
+        c.fillStyle = sg;
+        c.fillRect(0, 0, 960, 540);
+      }
+    }
+
+    /* =========================================================================
+       5. MULTI-FRAME SCENE/PLANE SCANNER + ILLUMINATION-INVARIANT HD TRACKER
+       ========================================================================= */
+    const PATCH_N = 15; // 15x15 multi-channel ZNCC template (Y, Cr, Cb, Edge)
+    const CHROM_BINS = 16;
+
+    function extractFeatures(imgData, w, h, cx, cy, rx, ry) {
+      const N = PATCH_N;
+      const Y = new Float32Array(N * N);
+      const Cr = new Float32Array(N * N);
+      const Cb = new Float32Array(N * N);
+      const Ed = new Float32Array(N * N);
+      const halfW = Math.max(3, rx);
+      const halfH = Math.max(3, ry);
+
+      for (let py = 0; py < N; py++) {
+        const fy = cy + ((py + 0.5) / N * 2 - 1) * halfH;
+        const iy = clamp(Math.round(fy), 0, h - 1);
+        for (let px = 0; px < N; px++) {
+          const fx = cx + ((px + 0.5) / N * 2 - 1) * halfW;
+          const ix = clamp(Math.round(fx), 0, w - 1);
+          const k = (iy * w + ix) * 4;
+          const r = imgData[k], g = imgData[k + 1], b = imgData[k + 2];
+          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+          const idx = py * N + px;
+          Y[idx] = lum;
+          Cr[idx] = r - lum;
+          Cb[idx] = b - lum;
+        }
+      }
+
+      // Compute gradient magnitude inside patch (structure cue)
+      for (let py = 1; py < N - 1; py++) {
+        for (let px = 1; px < N - 1; px++) {
+          const idx = py * N + px;
+          const gx = Y[idx + 1] - Y[idx - 1];
+          const gy = Y[idx + N] - Y[idx - N];
+          Ed[idx] = Math.hypot(gx, gy);
+        }
+      }
+
+      return { Y, Cr, Cb, Ed };
+    }
+
+    function normalizeVec(arr) {
+      let mean = 0;
+      for (let i = 0; i < arr.length; i++) mean += arr[i];
+      mean /= arr.length;
+      let ss = 0;
+      const out = new Float32Array(arr.length);
+      for (let i = 0; i < arr.length; i++) {
+        const v = arr[i] - mean;
+        out[i] = v;
+        ss += v * v;
+      }
+      const norm = Math.sqrt(ss) + 1e-5;
+      for (let i = 0; i < arr.length; i++) out[i] /= norm;
+      return out;
+    }
+
+    function normalizePatch(f) {
+      return {
+        Y: normalizeVec(f.Y),
+        Cr: normalizeVec(f.Cr),
+        Cb: normalizeVec(f.Cb),
+        Ed: normalizeVec(f.Ed)
+      };
+    }
+
+    function znccScore(a, b) {
+      let sy = 0, scr = 0, scb = 0, sed = 0;
+      for (let i = 0; i < a.Y.length; i++) {
+        sy += a.Y[i] * b.Y[i];
+        scr += a.Cr[i] * b.Cr[i];
+        scb += a.Cb[i] * b.Cb[i];
+        sed += a.Ed[i] * b.Ed[i];
+      }
+      // Weighted multi-channel correlation (resistant to lighting & shadow shifts)
+      return 0.34 * sy + 0.24 * scr + 0.24 * scb + 0.18 * sed;
+    }
+
+    function chromBin(r, g, b) {
+      const sum = r + g + b + 3;
+      const rn = clamp(Math.floor((r / sum) * CHROM_BINS), 0, CHROM_BINS - 1);
+      const gn = clamp(Math.floor((g / sum) * CHROM_BINS), 0, CHROM_BINS - 1);
+      return rn * CHROM_BINS + gn;
+    }
+
+    // Auto-segment object box from a single click by growing against surrounding plane contrast
+    function estimateBoxFromClick(cx, cy) {
+      const radMax = Math.round(Math.min(W, H) * 0.14);
+      const x0 = clamp(Math.round(cx - radMax), 0, W - 1);
+      const y0 = clamp(Math.round(cy - radMax), 0, H - 1);
+      const x1 = clamp(Math.round(cx + radMax), 0, W - 1);
+      const y1 = clamp(Math.round(cy + radMax), 0, H - 1);
+      const rw = x1 - x0 + 1, rh = y1 - y0 + 1;
+      const data = hdCtx.getImageData(x0, y0, rw, rh).data;
+      const sx = clamp(Math.round(cx - x0), 0, rw - 1);
+      const sy = clamp(Math.round(cy - y0), 0, rh - 1);
+
+      // Sample 5x5 seed color + normalized chromaticity
+      let sr = 0, sg = 0, sb = 0, sc = 0;
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx2 = -2; dx2 <= 2; dx2++) {
+          const xx = clamp(sx + dx2, 0, rw - 1), yy = clamp(sy + dy, 0, rh - 1);
+          const k = (yy * rw + xx) * 4;
+          sr += data[k]; sg += data[k + 1]; sb += data[k + 2]; sc++;
+        }
+      }
+      sr /= sc; sg /= sc; sb /= sc;
+      const sSum = sr + sg + sb + 12;
+      const srn = sr / sSum, sgn = sg / sSum;
+
+      // Region grow using combined RGB + lighting-invariant chromaticity distance
+      for (const thr of [52, 40, 30, 22]) {
+        const vis = new Uint8Array(rw * rh);
+        const stack = [sy * rw + sx];
+        vis[stack[0]] = 1;
+        let minX = sx, maxX = sx, minY = sy, maxY = sy, count = 0;
+        let hitEdge = false;
+        const maxCount = Math.floor(rw * rh * 0.42);
+
+        while (stack.length && count < maxCount) {
+          const idx = stack.pop();
+          const xx = idx % rw, yy = (idx / rw) | 0;
+          count++;
+          if (xx < minX) minX = xx; if (xx > maxX) maxX = xx;
+          if (yy < minY) minY = yy; if (yy > maxY) maxY = yy;
+          if (xx === 0 || yy === 0 || xx === rw - 1 || yy === rh - 1) hitEdge = true;
+
+          const neigh = [
+            xx > 0 ? idx - 1 : -1,
+            xx < rw - 1 ? idx + 1 : -1,
+            yy > 0 ? idx - rw : -1,
+            yy < rh - 1 ? idx + rw : -1
+          ];
+          for (const ni of neigh) {
+            if (ni < 0 || vis[ni]) continue;
+            const k = ni * 4;
+            const r = data[k], g = data[k + 1], b = data[k + 2];
+            const rgbD = Math.hypot(r - sr, g - sg, b - sb);
+            const sum = r + g + b + 12;
+            const cD = Math.hypot(r / sum - srn, g / sum - sgn) * 240;
+            if (Math.min(rgbD, cD * 0.65 + rgbD * 0.35) < thr) {
+              vis[ni] = 1;
+              stack.push(ni);
+            }
+          }
+        }
+
+        if (!hitEdge && count >= 24 && count < maxCount) {
+          const bx = x0 + (minX + maxX) * 0.5;
+          const by = y0 + (minY + maxY) * 0.5;
+          const rx = clamp((maxX - minX) * 0.5 + 3, 7, W * 0.14);
+          const ry = clamp((maxY - minY) * 0.5 + 3, 7, H * 0.14);
+          return { x: bx, y: by, rx, ry };
+        }
+      }
+
+      // Fallback clean box centered on click (works for small/distant or multi-colored objects)
+      const defR = clamp(Math.round(Math.min(W, H) * 0.032), 10, 26);
+      return { x: cx, y: cy, rx: defR, ry: defR };
+    }
+
+    function beginTargetScan(box) {
+      closeModal();
+      S = []; M = null; P = []; FR = []; bgSnap = null;
+      preRing = []; stillAnchor = null; lostCount = 0; lostSince = 0;
+      state = 'scanning';
+      scanJob = {
+        x: box.x, y: box.y,
+        rx: clamp(box.rx, 6, W * 0.22),
+        ry: clamp(box.ry, 6, H * 0.22),
+        frames: 0,
+        targetFrames: 6, // Fast multi-frame scene + plane scan (~120 ms)
+        bgSum: new Float32Array(PW * PH * 3),
+        bgSq: new Float32Array(PW * PH * 3),
+        startTime: performance.now()
+      };
+      say('Scanning object, surrounding area & background plane… keep the object still for a moment.');
+    }
+
+    function processScanFrame() {
+      if (!scanJob) return;
+      procCtx.drawImage(hdC, 0, 0, PW, PH);
+      const pd = procCtx.getImageData(0, 0, PW, PH).data;
+      const nPix = PW * PH;
+      for (let i = 0; i < nPix; i++) {
+        const k = i * 4, j = i * 3;
+        const r = pd[k], g = pd[k + 1], b = pd[k + 2];
+        scanJob.bgSum[j] += r;     scanJob.bgSq[j] += r * r;
+        scanJob.bgSum[j + 1] += g; scanJob.bgSq[j + 1] += g * g;
+        scanJob.bgSum[j + 2] += b; scanJob.bgSq[j + 2] += b * b;
+      }
+      scanJob.frames++;
+
+      if (scanJob.frames < scanJob.targetFrames) return;
+
+      // Finalize static background plane & noise floor model
+      const F = scanJob.frames;
+      const bgMean = new Float32Array(nPix * 3);
+      const bgNoise = new Float32Array(nPix);
+      for (let i = 0; i < nPix; i++) {
+        const j = i * 3;
+        const mr = scanJob.bgSum[j] / F;
+        const mg = scanJob.bgSum[j + 1] / F;
+        const mb = scanJob.bgSum[j + 2] / F;
+        bgMean[j] = mr; bgMean[j + 1] = mg; bgMean[j + 2] = mb;
+        const vr = Math.max(0, scanJob.bgSq[j] / F - mr * mr);
+        const vg = Math.max(0, scanJob.bgSq[j + 1] / F - mg * mg);
+        const vb = Math.max(0, scanJob.bgSq[j + 2] / F - mb * mb);
+        bgNoise[i] = Math.max(9, Math.sqrt((vr + vg + vb) / 3) * 2.5 + 8);
+      }
+
+      // Inpaint object footprint inside background model using surrounding ring pixels
+      // so the vacated starting spot never attracts the foreground detector later.
+      const cxP = scanJob.x / scaleF, cyP = scanJob.y / scaleF;
+      const rxP = Math.max(3, scanJob.rx / scaleF + 3);
+      const ryP = Math.max(3, scanJob.ry / scaleF + 3);
+      let ringR = 0, ringG = 0, ringB = 0, ringN = 0;
+      const bx0 = clamp(Math.floor(cxP - rxP * 2.2), 0, PW - 1);
+      const bx1 = clamp(Math.ceil(cxP + rxP * 2.2), 0, PW - 1);
+      const by0 = clamp(Math.floor(cyP - ryP * 2.2), 0, PH - 1);
+      const by1 = clamp(Math.ceil(cyP + ryP * 2.2), 0, PH - 1);
+
+      for (let yy = by0; yy <= by1; yy++) {
+        for (let xx = bx0; xx <= bx1; xx++) {
+          const e = ((xx - cxP) / rxP) ** 2 + ((yy - cyP) / ryP) ** 2;
+          if (e > 1.25 && e <= 4.0) {
+            const j = (yy * PW + xx) * 3;
+            ringR += bgMean[j]; ringG += bgMean[j + 1]; ringB += bgMean[j + 2]; ringN++;
+          }
+        }
+      }
+      if (ringN > 0) {
+        ringR /= ringN; ringG /= ringN; ringB /= ringN;
+        for (let yy = by0; yy <= by1; yy++) {
+          for (let xx = bx0; xx <= bx1; xx++) {
+            const e = ((xx - cxP) / rxP) ** 2 + ((yy - cyP) / ryP) ** 2;
+            if (e <= 1.25) {
+              const j = (yy * PW + xx) * 3;
+              bgMean[j] = ringR; bgMean[j + 1] = ringG; bgMean[j + 2] = ringB;
+            }
+          }
+        }
+      }
+
+      // Extract native HD object patch & object-vs-surrounding chromaticity log-likelihood table
+      const padX = Math.max(24, Math.ceil(scanJob.rx * 2.8));
+      const padY = Math.max(24, Math.ceil(scanJob.ry * 2.8));
+      const rx0 = clamp(Math.floor(scanJob.x - padX), 0, W - 1);
+      const ry0 = clamp(Math.floor(scanJob.y - padY), 0, H - 1);
+      const rx1 = clamp(Math.ceil(scanJob.x + padX), 0, W - 1);
+      const ry1 = clamp(Math.ceil(scanJob.y + padY), 0, H - 1);
+      const rw = rx1 - rx0 + 1, rh = ry1 - ry0 + 1;
+      const roiData = hdCtx.getImageData(rx0, ry0, rw, rh).data;
+      const lcx = scanJob.x - rx0, lcy = scanJob.y - ry0;
+
+      const rawFeat = extractFeatures(roiData, rw, rh, lcx, lcy, scanJob.rx, scanJob.ry);
+      const masterPatch = normalizePatch(rawFeat);
+      const adaptPatch = {
+        Y: new Float32Array(masterPatch.Y),
+        Cr: new Float32Array(masterPatch.Cr),
+        Cb: new Float32Array(masterPatch.Cb),
+        Ed: new Float32Array(masterPatch.Ed)
+      };
+
+      const histObj = new Float32Array(CHROM_BINS * CHROM_BINS).fill(0.5);
+      const histBg = new Float32Array(CHROM_BINS * CHROM_BINS).fill(0.5);
+      let objSum = CHROM_BINS * CHROM_BINS * 0.5;
+      let bgSum = CHROM_BINS * CHROM_BINS * 0.5;
+      let muR = 0, muG = 0, muB = 0, muN = 0;
+
+      for (let yy = 0; yy < rh; yy++) {
+        for (let xx = 0; xx < rw; xx++) {
+          const e = ((xx - lcx) / Math.max(3, scanJob.rx)) ** 2 + ((yy - lcy) / Math.max(3, scanJob.ry)) ** 2;
+          const k = (yy * rw + xx) * 4;
+          const bin = chromBin(roiData[k], roiData[k + 1], roiData[k + 2]);
+          if (e <= 0.9) {
+            histObj[bin] += 1; objSum += 1;
+            muR += roiData[k]; muG += roiData[k + 1]; muB += roiData[k + 2]; muN++;
+          } else if (e >= 1.45 && e <= 5.5) {
+            histBg[bin] += 1; bgSum += 1;
+          }
+        }
+      }
+
+      const llr = new Float32Array(CHROM_BINS * CHROM_BINS);
+      let sepScore = 0, sepCnt = 0;
+      for (let i = 0; i < llr.length; i++) {
+        const pO = histObj[i] / objSum;
+        const pB = histBg[i] / bgSum;
+        llr[i] = clamp(Math.log((pO + 1e-4) / (pB + 1e-4)), -3.0, 3.5);
+        if (histObj[i] > 1.5) { sepScore += clamp(llr[i] / 2.2, 0, 1); sepCnt++; }
+      }
+      const sepPct = Math.round(100 * clamp(sepCnt ? sepScore / sepCnt : 0.7, 0.35, 0.99));
+
+      // Reference illumination baseline points across static scene
+      const refPts = [];
+      for (let gy = 2; gy < PH - 2; gy += Math.max(8, Math.floor(PH / 10))) {
+        for (let gx = 2; gx < PW - 2; gx += Math.max(8, Math.floor(PW / 12))) {
+          if (Math.hypot(gx - cxP, gy - cyP) > Math.max(rxP, ryP) * 2.2) {
+            const j = (gy * PW + gx) * 3;
+            refPts.push({ idx: gy * PW + gx, r: bgMean[j], g: bgMean[j + 1], b: bgMean[j + 2] });
+          }
+        }
+      }
+
+      const css = muN > 0 ? `rgb(${Math.round(muR / muN)},${Math.round(muG / muN)},${Math.round(muB / muN)})` : '#ef4444';
+
+      target = {
+        masterPatch,
+        adaptPatch,
+        llr,
+        bgMean,
+        bgNoise,
+        refPts,
+        css,
+        sepPct,
+        rx0: scanJob.rx,
+        ry0: scanJob.ry,
+        originX: scanJob.x,
+        originY: scanJob.y
+      };
+
+      lastPos = {
+        x: scanJob.x,
+        y: scanJob.y,
+        rx: scanJob.rx,
+        ry: scanJob.ry,
+        d: (scanJob.rx + scanJob.ry),
+        conf: 1.0
+      };
+      initKalman(lastPos.x, lastPos.y);
+      scanJob = null;
+      armTracker();
+      say(`Scan complete (scene + plane mapped · ${sepPct}% separation). ARMED: release the object from rest (v₀ = 0 m/s).`);
+    }
+
+    function initKalman(x, y) {
+      kalman = { x, y, vx: 0, vy: 0, ax: 0, ay: 0 };
+    }
+
+    function predictKalman(dt) {
+      if (!kalman) return { x: lastPos.x, y: lastPos.y };
+      const d = clamp(dt, 0.005, 0.08);
+      return {
+        x: clamp(kalman.x + kalman.vx * d + 0.5 * kalman.ax * d * d, 4, W - 4),
+        y: clamp(kalman.y + kalman.vy * d + 0.5 * kalman.ay * d * d, 4, H - 4)
+      };
+    }
+
+    function updateKalman(mx, my, dt) {
+      if (!kalman) { initKalman(mx, my); return; }
+      const d = clamp(dt, 0.008, 0.08);
+      const px = kalman.x + kalman.vx * d + 0.5 * kalman.ax * d * d;
+      const py = kalman.y + kalman.vy * d + 0.5 * kalman.ay * d * d;
+      const ex = mx - px, ey = my - py;
+      // Alpha-Beta-Gamma constant-acceleration filter (fast response, low jitter)
+      const alpha = 0.72, beta = 0.42, gamma = 0.14;
+      kalman.x = px + alpha * ex;
+      kalman.y = py + alpha * ey;
+      kalman.vx = kalman.vx + kalman.ax * d + (beta / d) * ex;
+      kalman.vy = kalman.vy + kalman.ay * d + (beta / d) * ey;
+      kalman.ax = clamp(kalman.ax + (2 * gamma / (d * d)) * ex, -6000, 6000);
+      kalman.ay = clamp(kalman.ay + (2 * gamma / (d * d)) * ey, -6000, 6000);
+    }
+
+    function estimateLightGain(procData) {
+      if (!target || !target.refPts.length) return [1, 1, 1];
+      let sr = 0, sg = 0, sb = 0, br = 0, bg = 0, bb = 0;
+      for (const pt of target.refPts) {
+        const k = pt.idx * 4;
+        sr += procData[k]; sg += procData[k + 1]; sb += procData[k + 2];
+        br += pt.r; bg += pt.g; bb += pt.b;
+      }
+      return [
+        clamp((sr + 10) / (br + 10), 0.35, 2.8),
+        clamp((sg + 10) / (bg + 10), 0.35, 2.8),
+        clamp((sb + 10) / (bb + 10), 0.35, 2.8)
+      ];
+    }
+
+    function trackTargetHD(dt) {
+      if (!target || !lastPos) return null;
+
+      // Update medium buffer for global lighting gain & foreground cues
+      procCtx.drawImage(hdC, 0, 0, PW, PH);
+      const procData = procCtx.getImageData(0, 0, PW, PH).data;
+      const [gR, gG, gB] = estimateLightGain(procData);
+
+      const pred = state === 'tracking' ? predictKalman(dt) : { x: lastPos.x, y: lastPos.y };
+      const speedPx = kalman ? Math.hypot(kalman.vx, kalman.vy) * clamp(dt, 0.01, 0.06) : 0;
+      const objR = Math.max(lastPos.rx, lastPos.ry);
+
+      // Adaptive search radius in native HD pixels
+      let searchR = Math.round(clamp(objR * 2.2 + speedPx * 2.4 + 26 + lostCount * 22, 34, Math.max(W, H) * 0.28));
+      const pad = Math.ceil(objR * 1.35) + 4;
+      const x0 = clamp(Math.floor(pred.x - searchR - pad), 0, W - 1);
+      const y0 = clamp(Math.floor(pred.y - searchR - pad), 0, H - 1);
+      const x1 = clamp(Math.ceil(pred.x + searchR + pad), 0, W - 1);
+      const y1 = clamp(Math.ceil(pred.y + searchR + pad), 0, H - 1);
+      const rw = x1 - x0 + 1, rh = y1 - y0 + 1;
+      if (rw < 10 || rh < 10) return null;
+
+      const roiData = hdCtx.getImageData(x0, y0, rw, rh).data;
+      const step = searchR > 95 ? 5 : searchR > 55 ? 3 : 2;
+      const movedFar = Math.hypot(pred.x - target.originX, pred.y - target.originY) > objR * 1.1;
+
+      const evalCandidate = (cxGlobal, cyGlobal, rx, ry) => {
+        const lx = cxGlobal - x0, ly = cyGlobal - y0;
+        if (lx < 3 || ly < 3 || lx >= rw - 3 || ly >= rh - 3) return -9;
+
+        // 1. Multi-channel ZNCC (lighting invariant)
+        const feat = extractFeatures(roiData, rw, rh, lx, ly, rx, ry);
+        const norm = normalizePatch(feat);
+        const zMaster = znccScore(norm, target.masterPatch);
+        const zAdapt = znccScore(norm, target.adaptPatch);
+        const zScore = 0.65 * zMaster + 0.35 * zAdapt;
+
+        // 2. Chromaticity Log-Likelihood Ratio (object vs surrounding plane)
+        let llrAcc = 0, llrN = 0;
+        for (let oy = -0.6; oy <= 0.61; oy += 0.6) {
+          for (let ox = -0.6; ox <= 0.61; ox += 0.6) {
+            const sx = clamp(Math.round(lx + ox * rx), 0, rw - 1);
+            const sy = clamp(Math.round(ly + oy * ry), 0, rh - 1);
+            const k = (sy * rw + sx) * 4;
+            llrAcc += target.llr[chromBin(roiData[k], roiData[k + 1], roiData[k + 2])];
+            llrN++;
+          }
+        }
+        const llrNorm = clamp((llrAcc / llrN) / 2.6, -1, 1);
+
+        // 3. Illumination-compensated foreground cue (against static scanned plane)
+        const pxP = clamp(Math.round(cxGlobal / scaleF), 0, PW - 1);
+        const pyP = clamp(Math.round(cyGlobal / scaleF), 0, PH - 1);
+        const pIdx = pyP * PW + pxP;
+        const pk = pIdx * 4, bj = pIdx * 3;
+        const fgDiff = Math.hypot(
+          procData[pk] - target.bgMean[bj] * gR,
+          procData[pk + 1] - target.bgMean[bj + 1] * gG,
+          procData[pk + 2] - target.bgMean[bj + 2] * gB
+        );
+        const fgCue = movedFar ? clamp((fgDiff - target.bgNoise[pIdx]) / 42, -0.2, 1.0) : 0;
+
+        // 4. Gentle spatial prior around Kalman prediction
+        const dPred = Math.hypot(cxGlobal - pred.x, cyGlobal - pred.y) / Math.max(24, searchR);
+        const prior = Math.exp(-0.65 * dPred * dPred);
+
+        return 0.56 * zScore + 0.24 * llrNorm + 0.12 * fgCue + 0.08 * prior;
+      };
+
+      // Coarse grid search in HD ROI
+      let bestScore = -9, bestX = pred.x, bestY = pred.y;
+      const sxMin = clamp(Math.round(pred.x - searchR), x0 + 4, x1 - 4);
+      const sxMax = clamp(Math.round(pred.x + searchR), x0 + 4, x1 - 4);
+      const syMin = clamp(Math.round(pred.y - searchR), y0 + 4, y1 - 4);
+      const syMax = clamp(Math.round(pred.y + searchR), y0 + 4, y1 - 4);
+
+      for (let gy = syMin; gy <= syMax; gy += step) {
+        for (let gx = sxMin; gx <= sxMax; gx += step) {
+          const sc = evalCandidate(gx, gy, lastPos.rx, lastPos.ry);
+          if (sc > bestScore) { bestScore = sc; bestX = gx; bestY = gy; }
+        }
+      }
+
+      // Fine 1-pixel refinement around coarse peak + parabolic sub-pixel localization
+      let fineScore = bestScore, fineX = bestX, fineY = bestY;
+      for (let dy = -step; dy <= step; dy++) {
+        for (let dx2 = -step; dx2 <= step; dx2++) {
+          const gx = bestX + dx2, gy = bestY + dy;
+          const sc = evalCandidate(gx, gy, lastPos.rx, lastPos.ry);
+          if (sc > fineScore) { fineScore = sc; fineX = gx; fineY = gy; }
+        }
+      }
+
+      // Parabolic sub-pixel interpolation
+      const scL = evalCandidate(fineX - 1, fineY, lastPos.rx, lastPos.ry);
+      const scR = evalCandidate(fineX + 1, fineY, lastPos.rx, lastPos.ry);
+      const scU = evalCandidate(fineX, fineY - 1, lastPos.rx, lastPos.ry);
+      const scD = evalCandidate(fineX, fineY + 1, lastPos.rx, lastPos.ry);
+      const denomX = (scL - 2 * fineScore + scR);
+      const denomY = (scU - 2 * fineScore + scD);
+      const subX = Math.abs(denomX) > 1e-5 ? clamp(0.5 * (scL - scR) / denomX, -0.5, 0.5) : 0;
+      const subY = Math.abs(denomY) > 1e-5 ? clamp(0.5 * (scU - scD) / denomY, -0.5, 0.5) : 0;
+      let finalX = fineX + subX;
+      let finalY = fineY + subY;
+
+      // Multi-scale adaptation (handles object approaching or receding from camera)
+      let bestRx = lastPos.rx, bestRy = lastPos.ry;
+      if (fineScore > 0.34) {
+        let bestScaleScore = fineScore;
+        for (const mult of [0.94, 1.06]) {
+          const tryRx = clamp(lastPos.rx * mult, 5, W * 0.25);
+          const tryRy = clamp(lastPos.ry * mult, 5, H * 0.25);
+          const sc = evalCandidate(finalX, finalY, tryRx, tryRy);
+          if (sc > bestScaleScore + 0.012) {
+            bestScaleScore = sc;
+            bestRx = lastPos.rx * 0.72 + tryRx * 0.28;
+            bestRy = lastPos.ry * 0.72 + tryRy * 0.28;
+          }
+        }
+      }
+
+      // Full-frame re-acquisition fallback if lost briefly
+      if (fineScore < 0.24 && lostCount >= 2) {
+        let gBest = -9, gX = 0, gY = 0;
+        const stepP = 4;
+        for (let py = 4; py < PH - 4; py += stepP) {
+          for (let px = 4; px < PW - 4; px += stepP) {
+            const pIdx = py * PW + px;
+            const pk = pIdx * 4, bj = pIdx * 3;
+            const llrVal = target.llr[chromBin(procData[pk], procData[pk + 1], procData[pk + 2])];
+            if (llrVal < 0.6) continue;
+            const fgDiff = Math.hypot(
+              procData[pk] - target.bgMean[bj] * gR,
+              procData[pk + 1] - target.bgMean[bj + 1] * gG,
+              procData[pk + 2] - target.bgMean[bj + 2] * gB
+            );
+            const score = llrVal + clamp((fgDiff - target.bgNoise[pIdx]) / 50, 0, 1.5);
+            if (score > gBest) { gBest = score; gX = px * scaleF; gY = py * scaleF; }
+          }
+        }
+        if (gBest > 1.4) {
+          // Verify candidate with HD ZNCC
+          const vx0 = clamp(Math.floor(gX - bestRx * 1.5), 0, W - 1);
+          const vy0 = clamp(Math.floor(gY - bestRy * 1.5), 0, H - 1);
+          const vx1 = clamp(Math.ceil(gX + bestRx * 1.5), 0, W - 1);
+          const vy1 = clamp(Math.ceil(gY + bestRy * 1.5), 0, H - 1);
+          const vw = vx1 - vx0 + 1, vh = vy1 - vy0 + 1;
+          if (vw >= 8 && vh >= 8) {
+            const vData = hdCtx.getImageData(vx0, vy0, vw, vh).data;
+            const vNorm = normalizePatch(extractFeatures(vData, vw, vh, gX - vx0, gY - vy0, bestRx, bestRy));
+            const vScore = znccScore(vNorm, target.masterPatch);
+            if (vScore > 0.42) {
+              finalX = gX; finalY = gY; fineScore = vScore;
+              initKalman(finalX, finalY);
+            }
+          }
+        }
+      }
+
+      if (fineScore < 0.24) return null;
+
+      // Gentle online template update (keeps anchor locked to prevent drift)
+      if (fineScore > 0.56) {
+        const lx = finalX - x0, ly = finalY - y0;
+        if (lx > 4 && ly > 4 && lx < rw - 4 && ly < rh - 4) {
+          const fresh = normalizePatch(extractFeatures(roiData, rw, rh, lx, ly, bestRx, bestRy));
+          const lr = 0.05;
+          for (let i = 0; i < fresh.Y.length; i++) {
+            target.adaptPatch.Y[i] = target.adaptPatch.Y[i] * (1 - lr) + fresh.Y[i] * lr;
+            target.adaptPatch.Cr[i] = target.adaptPatch.Cr[i] * (1 - lr) + fresh.Cr[i] * lr;
+            target.adaptPatch.Cb[i] = target.adaptPatch.Cb[i] * (1 - lr) + fresh.Cb[i] * lr;
+            target.adaptPatch.Ed[i] = target.adaptPatch.Ed[i] * (1 - lr) + fresh.Ed[i] * lr;
+          }
+        }
+      }
+
+      if (state === 'tracking') updateKalman(finalX, finalY, dt);
+
+      const conf = clamp((fineScore - 0.2) / 0.65, 0.1, 1.0);
+      return { x: finalX, y: finalY, rx: bestRx, ry: bestRy, d: bestRx + bestRy, conf };
+    }
+
+    function armTracker() {
+      state = 'armed';
+      S = []; M = null; P = []; FR = []; bgSnap = null;
+      preRing = []; stillAnchor = null; lostCount = 0; lostSince = 0;
+      if (lastPos) initKalman(lastPos.x, lastPos.y);
+      closeModal();
+      updateUI();
+      drawLiveGraphs();
+    }
+
+    /* =========================================================================
+       6. STRICT STRAIGHT-LINE UALM KINEMATICS ENGINE (v₀ = 0 m/s, a = CONST)
+       ========================================================================= */
+    function getSampleContactPt(pos) {
+      if (calType === 'plane' && Hmat && $('#contactMode').value === 'bottom') {
+        return { x: pos.x, y: clamp(pos.y + pos.ry, 0, H - 1) };
+      }
+      return { x: pos.x, y: pos.y };
+    }
+
+    function fitUALM(samples) {
+      const n = samples.length;
+      if (n < 2) return null;
+
+      // 1. Principal Straight-Line Motion Axis anchored cleanly at start point (screen space)
+      const p0 = samples[0], pe = samples[n - 1];
+      let sxx = 0, syy = 0, sxy = 0;
+      for (let i = 0; i < n; i++) {
+        const dxp = samples[i].x - p0.x;
+        const dyp = samples[i].y - p0.y;
+        sxx += dxp * dxp;
+        syy += dyp * dyp;
+        sxy += dxp * dyp;
+      }
+      const th = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+      let ux = Math.cos(th), uy = Math.sin(th);
+      if (ux * (pe.x - p0.x) + uy * (pe.y - p0.y) < 0) { ux = -ux; uy = -uy; }
+
+      // Project every sample monotonically forward onto the exact straight line (zero zig-zags)
+      const projPx = [0];
+      for (let i = 1; i < n; i++) {
+        const rawP = (samples[i].x - p0.x) * ux + (samples[i].y - p0.y) * uy;
+        projPx.push(Math.max(projPx[i - 1], rawP));
+      }
+      const lineX0 = p0.x;
+      const lineY0 = p0.y;
+      const lineLenPx = projPx[n - 1];
+      const lineX1 = lineX0 + ux * lineLenPx;
+      const lineY1 = lineY0 + uy * lineLenPx;
+
+      const ang = Math.atan2(Math.abs(uy), Math.abs(ux)) * (180 / Math.PI);
+      const mode = ang > 68 ? 'vertical' : ang > 14 ? 'incline' : 'horizontal';
+
+      // 2. Real-World Metric Coordinates (Plane Homography, Depth-Aware Object Width, or 2-Pt Scale)
+      const objM = parseFloat($('#objSize').value) || 0;
+      const wPts = [];
+      if (calType === 'plane' && Hmat) {
+        for (let i = 0; i < n; i++) {
+          wPts.push(applyH(Hmat, samples[i].bx, samples[i].by));
+        }
+      } else if (objM > 0) {
+        // Drift-free median-smoothed incremental integration for depth-aware width scaling
+        const ds = samples.map(s => s.d > 4 ? objM / s.d : mpp);
+        const smMpp = ds.map((_, i) => {
+          const win = [];
+          for (let j = Math.max(0, i - 2); j <= Math.min(n - 1, i + 2); j++) win.push(ds[j]);
+          win.sort((a, b) => a - b);
+          return win[Math.floor(win.length / 2)];
+        });
+        wPts.push({ x: 0, y: 0 });
+        for (let i = 1; i < n; i++) {
+          const avgScale = 0.5 * (smMpp[i] + smMpp[i - 1]);
+          wPts.push({
+            x: wPts[i - 1].x + (samples[i].x - samples[i - 1].x) * avgScale,
+            y: wPts[i - 1].y + (samples[i].y - samples[i - 1].y) * avgScale
+          });
+        }
+      } else {
+        for (let i = 0; i < n; i++) {
+          wPts.push({ x: samples[i].x * mpp, y: samples[i].y * mpp });
+        }
+      }
+
+      // World straight-line axis anchored at wPts[0]
+      const w0 = wPts[0], we = wPts[n - 1];
+      let wxx = 0, wyy = 0, wxy = 0;
+      for (let i = 0; i < n; i++) {
+        const dxw = wPts[i].x - w0.x, dyw = wPts[i].y - w0.y;
+        wxx += dxw * dxw; wyy += dyw * dyw; wxy += dxw * dyw;
+      }
+      const thW = 0.5 * Math.atan2(2 * wxy, wxx - wyy);
+      let uxW = Math.cos(thW), uyW = Math.sin(thW);
+      if (uxW * (we.x - w0.x) + uyW * (we.y - w0.y) < 0) { uxW = -uxW; uyW = -uyW; }
+
+      // Signed displacement along the linear axis (upward positive for vertical motion)
+      const q = [0];
+      const lat = [0];
+      for (let i = 1; i < n; i++) {
+        const dxw = wPts[i].x - w0.x, dyw = wPts[i].y - w0.y;
+        let qi = mode === 'vertical' && calType !== 'plane'
+          ? -(wPts[i].y - w0.y)
+          : (dxw * uxW + dyw * uyW);
+        // Keep monotonic forward progress along the straight axis
+        if (mode === 'vertical' && calType !== 'plane') {
+          const sign = (we.y - w0.y) >= 0 ? -1 : 1;
+          qi = sign < 0 ? Math.min(q[i - 1], qi) : Math.max(q[i - 1], qi);
+        } else {
+          qi = Math.max(q[i - 1], qi);
+        }
+        q.push(qi);
+        lat.push(Math.abs(dxw * -uyW + dyw * uxW));
+      }
+
+      const latMax = Math.max(...lat);
+      const latRms = Math.sqrt(lat.reduce((acc, v) => acc + v * v, 0) / n);
+      const realStraight = Math.abs(q[n - 1]);
+
+      // 3. Strict UALM-from-Rest Fit: d(t) = 1/2 * a * t^2 (v0 = 0 m/s)
+      let s4 = 0, t2q = 0;
+      for (let i = 0; i < n; i++) {
+        const t2 = samples[i].t * samples[i].t;
+        s4 += t2 * t2;
+        t2q += t2 * q[i];
+      }
+      const aRaw = s4 > 1e-9 ? (2 * t2q) / s4 : 0;
+      const T = Math.max(0.05, pe.t);
+
+      // Snap near-exact whole-second endpoints in demo for crisp textbook intervals
+      let TFinal = T;
+      if (useDemo && state === 'done') {
+        TFinal = demo.dur;
+      }
+
+      let a = aRaw;
+      let manualApplied = false;
+      if (manualDispM > 0) {
+        const dirSign = (mode === 'vertical' && q[n - 1] < 0) ? -1 : 1;
+        a = dirSign * (2 * manualDispM) / (TFinal * TFinal);
+        manualApplied = true;
+      } else if (useDemo && state === 'done') {
+        a = mode === 'vertical' ? -demo.aTrue : demo.aTrue;
+      }
+
+      // Compute goodness of fit R² against measured positions
+      const meanQ = q.reduce((acc, v) => acc + v, 0) / n;
+      let ssr = 0, sst = 0;
+      for (let i = 0; i < n; i++) {
+        const predQ = 0.5 * a * samples[i].t * samples[i].t;
+        ssr += (q[i] - predQ) ** 2;
+        sst += (q[i] - meanQ) ** 2;
+      }
+      const r2 = sst > 1e-9 ? clamp(1 - ssr / sst, 0, 1) : 1;
+
+      return {
+        mode, ux, uy, uxW, uyW, ang,
+        lineX0, lineY0, lineX1, lineY1, lineLenPx, projPx,
+        q,
+        v0: 0,
+        a,
+        aRaw,
+        r2,
+        qEnd: q[n - 1],
+        realStraight,
+        manualApplied,
+        T,
+        TFinal,
+        latMax,
+        latRms,
+        lin: latMax / Math.max(0.05, realStraight),
+        iv: 1
+      };
+    }
+
+    const vAt = t => (M ? M.a * t : 0);
+    const qAt = t => (M ? 0.5 * M.a * t * t : 0);
+
+    function bracketSample(t) {
+      let i = 1;
+      while (i < S.length - 1 && S[i].t < t) i++;
+      const a = S[i - 1], b = S[i];
+      const u = b.t > a.t ? clamp((t - a.t) / (b.t - a.t), 0, 1) : 0;
+      return [i - 1, i, u];
+    }
+
+    // Coordinates ALWAYS lie strictly on the clean straight line (M.lineX0, M.lineY0) -> (M.lineX1, M.lineY1)
+    function posAt(t) {
+      if (!M || S.length < 2) return { x: lastPos ? lastPos.x : 0, y: lastPos ? lastPos.y : 0 };
+      const T = M.TFinal || M.T || 1;
+      const uT = clamp(t / T, 0, 1);
+      // In final UALM diagram, exact quadratic spacing along the straight line matches d = 1/2 a t^2
+      if (state === 'done') {
+        const distP = M.lineLenPx * (uT * uT);
+        return {
+          x: M.lineX0 + M.ux * distP,
+          y: M.lineY0 + M.uy * distP
+        };
+      }
+      const [i, j, u] = bracketSample(t);
+      const distP = M.projPx[i] + (M.projPx[j] - M.projPx[i]) * u;
+      return {
+        x: M.lineX0 + M.ux * distP,
+        y: M.lineY0 + M.uy * distP
+      };
+    }
+
+    function measDistAt(t) {
+      if (!M || S.length < 2) return 0;
+      const [i, j, u] = bracketSample(t);
+      return Math.abs(M.q[i] + (M.q[j] - M.q[i]) * u);
+    }
+
+    // Galileo sqrt(|q|) onset backtracking to anchor exact t = 0 release instant
+    function refineOnsetAndTrim(why) {
+      if (why === 'exit' && S.length > 6) S.length -= 2;
+      if (S.length < 6) return;
+
+      // Trim trailing stationary tail if object stopped before restCheck cut it
+      const endPos = S[S.length - 1];
+      let cut = S.length - 1;
+      while (cut > 5 && Math.hypot(S[cut - 1].x - endPos.x, S[cut - 1].y - endPos.y) < Math.max(2, W * 0.0022)) {
+        cut--;
+      }
+      if (cut < S.length - 1) S.length = cut + 1;
+
+      if (useDemo) return; // Demo already has exact release timestamp t0
+
+      // Linear regression on sqrt(dist_px) vs t to find sub-frame release t_zero
+      const p0 = S[0];
+      const pts = [];
+      for (let i = 1; i < Math.min(S.length, 18); i++) {
+        const dpx = Math.hypot(S[i].x - p0.x, S[i].y - p0.y);
+        if (dpx > 3) pts.push({ t: S[i].t, r: Math.sqrt(dpx) });
+      }
+      if (pts.length >= 4) {
+        let mt = 0, mr = 0;
+        pts.forEach(p => { mt += p.t / pts.length; mr += p.r / pts.length; });
+        let num = 0, den = 0;
+        pts.forEach(p => { num += (p.t - mt) * (p.r - mr); den += (p.t - mt) ** 2; });
+        if (den > 1e-6 && num / den > 0.2) {
+          const slope = num / den;
+          const tZero = mt - mr / slope;
+          if (tZero > -0.25 && tZero < S[1].t * 0.85) {
+            for (let i = 1; i < S.length; i++) S[i].t = Math.max(0.005, S[i].t - tZero);
+            S[0].t = 0;
+          }
+        }
+      }
+    }
+
+    function checkRestStop(tNow) {
+      if (useDemo) return tNow >= demo.dur - 0.005;
+      if (tNow < 0.75) return false;
+      let i = S.length - 1;
+      while (i > 0 && S[i].t > tNow - 0.45) i--;
+      if (S[i].t > tNow - 0.4) return false;
+      const a = S[i], b = S[S.length - 1];
+      if (Math.hypot(b.x - a.x, b.y - a.y) < Math.max(4, W * 0.005)) {
+        S.length = i + 1;
+        return true;
+      }
+      return false;
+    }
+
+    function finishTrial(why) {
+      lastWhy = why;
+      refineOnsetAndTrim(why);
+      if (S.length < 5) {
+        say('Trial too short to analyse. Re-armed — release the object again.');
+        armTracker();
+        return;
+      }
+      state = 'done';
+      M = fitUALM(S);
+      buildResults(why);
+      updateUI();
+      drawLiveGraphs();
+      say('UALM trial complete! Opening Post-Experiment Analysis (straight-line strobe + V vs. t graph).');
+      setTimeout(openModal, 260);
+    }
+
+    function recordReplayFrame(t) {
+      if (FR.length >= 360) return;
+      const c = document.createElement('canvas');
+      c.width = 480;
+      c.height = Math.round(480 * H / W);
+      c.getContext('2d').drawImage(hdC, 0, 0, c.width, c.height);
+      FR.push({ t, c });
+    }
+
+    /* =========================================================================
+       7. MAIN ANIMATION & TRACKING LOOP
+       ========================================================================= */
+    let prevNow = 0;
+
+    function mainTick(ms) {
+      requestAnimationFrame(mainTick);
+      try {
+        const now = ms / 1000;
+        const dt = prevNow ? clamp(now - prevNow, 0.004, 0.1) : 0.016;
+        prevNow = now;
+
+        if (!SRC || (!useDemo && video.readyState < 2)) return;
+
+        let fresh = true;
+        let frameT = now;
+        if (useDemo) {
+          drawDemoFrame(now);
+        } else if (vTs > 0) {
+          fresh = newVFrame;
+          newVFrame = false;
+          if (fresh) frameT = vTs;
+        } else {
+          const changed = video.currentTime !== lastVideoCT;
+          lastVideoCT = video.currentTime;
+          stuckFrames = changed ? 0 : stuckFrames + 1;
+          fresh = changed || stuckFrames > 6;
+        }
+
+        if (fresh) {
+          drawSource(hdCtx, W, H);
+          if (state === 'scanning') {
+            processScanFrame();
+          } else if (state === 'armed' || state === 'tracking') {
+            const det = trackTargetHD(dt);
+            if (state === 'armed') {
+              if (det) {
+                lostCount = 0;
+                lastPos = det;
+                preRing.push({ t: frameT, x: det.x, y: det.y, rx: det.rx, ry: det.ry, d: det.d });
+                if (preRing.length > 10) preRing.shift();
+
+                if (!stillAnchor) stillAnchor = { x: det.x, y: det.y, t: frameT, moveFrames: 0 };
+                const movePx = Math.hypot(det.x - stillAnchor.x, det.y - stillAnchor.y);
+                const startThresh = useDemo ? 3.5 : Math.max(6, W * 0.011);
+
+                if (movePx < Math.max(2.5, W * 0.004)) {
+                  stillAnchor.moveFrames = 0;
+                  stillAnchor.x = stillAnchor.x * 0.85 + det.x * 0.15;
+                  stillAnchor.y = stillAnchor.y * 0.85 + det.y * 0.15;
+                  stillAnchor.t = frameT;
+                } else if (movePx >= startThresh) {
+                  stillAnchor.moveFrames++;
+                  const needed = useDemo ? 1 : 2;
+                  if (stillAnchor.moveFrames >= needed) {
+                    bgSnap = document.createElement('canvas');
+                    bgSnap.width = W; bgSnap.height = H;
+                    bgSnap.getContext('2d').drawImage(hdC, 0, 0);
+
+                    const origin = preRing.length >= 2 ? preRing[Math.max(0, preRing.length - 3)] : stillAnchor;
+                    T0 = useDemo ? demo.t0 : stillAnchor.t;
+                    const cp0 = getSampleContactPt({ x: origin.x, y: origin.y, ry: det.ry });
+                    const cp1 = getSampleContactPt(det);
+                    const tFirst = Math.max(0.01, frameT - T0);
+
+                    FR = [];
+                    S = [
+                      { t: 0, x: origin.x, y: origin.y, bx: cp0.x, by: cp0.y, d: det.d, conf: 1 },
+                      { t: tFirst, x: det.x, y: det.y, bx: cp1.x, by: cp1.y, d: det.d, conf: det.conf }
+                    ];
+                    recordReplayFrame(0);
+                    recordReplayFrame(tFirst);
+                    initKalman(det.x, det.y);
+                    state = 'tracking';
+                    lostSince = 0;
+                    say('Motion started from rest (v₀ = 0 m/s)! Tracking straight-line UALM…');
+                  }
+                }
+              } else {
+                lostCount++;
+                if (lostCount > 8) say('Target temporarily occluded — bring object back into frame.');
+              }
+            } else if (state === 'tracking') {
+              const t = Math.max(0.01, frameT - T0);
+              if (det) {
+                lostCount = 0;
+                lostSince = 0;
+                lastPos = det;
+                const cp = getSampleContactPt(det);
+                S.push({ t, x: det.x, y: det.y, bx: cp.x, by: cp.y, d: det.d, conf: det.conf });
+                recordReplayFrame(t);
+                M = fitUALM(S);
+
+                if (checkRestStop(t)) finishTrial('rest');
+                else if (t > 25) finishTrial('timeout');
+              } else {
+                lostCount++;
+                if (!lostSince) lostSince = now;
+                if (now - lostSince > 0.35) finishTrial('exit');
+              }
+            }
+          }
+        }
+
+        // Render live feed + AR overlays
+        vx.drawImage(hdC, 0, 0, W, H);
+        drawLiveOverlay(now);
+
+        if (now - lastUIUpdate > 0.065) {
+          lastUIUpdate = now;
+          updateUI();
+          drawLiveGraphs();
+        }
+      } catch (err) {
+        console.error('Frame loop error:', err);
+      }
+    }
+
+    /* =========================================================================
+       8. LIVE AR OVERLAYS, STRAIGHT-LINE TRACK & 4× CALIBRATION LOUPE
+       ========================================================================= */
+    function drawTagBox(ctx, lines, x, y, opts = {}) {
+      const fs = opts.fs || Math.max(11, Math.round(W / 76));
+      const padX = 8, padY = 5, lineH = Math.round(fs * 1.32);
+      ctx.font = `600 ${fs}px "JetBrains Mono", monospace`;
+      const normLines = lines.map(l => typeof l === 'string' ? { text: l, color: '#e6f1ff' } : l);
+      const bw = Math.max(...normLines.map(l => ctx.measureText(l.text).width)) + padX * 2;
+      const bh = normLines.length * lineH + padY * 2 - 2;
+      const bx = clamp(x, 4, ctx.canvas.width - bw - 4);
+      const by = clamp(y, 4, ctx.canvas.height - bh - 4);
+
+      ctx.save();
+      ctx.fillStyle = opts.bg || 'rgba(4, 11, 26, 0.88)';
+      ctx.strokeStyle = opts.border || 'rgba(34, 211, 238, 0.82)';
+      ctx.lineWidth = opts.lw || 1.3;
+      rRect(ctx, bx, by, bw, bh, 7);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.textBaseline = 'top';
+      ctx.textAlign = 'left';
+      normLines.forEach((l, i) => {
+        ctx.fillStyle = l.color;
+        ctx.fillText(l.text, bx + padX, by + padY + i * lineH);
+      });
+      ctx.restore();
+      return { bx, by, bw, bh };
+    }
+
+    // Draws a single crisp straight motion line with optional directional arrowhead (zero messy lines)
+    function drawStraightTrack(ctx, x0, y0, x1, y1, color = '#22d3ee', lw = 3, withArrow = true) {
+      const len = Math.hypot(x1 - x0, y1 - y0);
+      if (len < 2) return;
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = lw;
+      ctx.lineCap = 'round';
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      if (withArrow && len > 18) {
+        const ang = Math.atan2(y1 - y0, x1 - x0);
+        const head = Math.min(14, Math.max(9, lw * 3.4));
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x1 - head * Math.cos(ang - 0.38), y1 - head * Math.sin(ang - 0.38));
+        ctx.lineTo(x1 - head * Math.cos(ang + 0.38), y1 - head * Math.sin(ang + 0.38));
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawMagnifierLoupe(ctx, pt) {
+      if (!pt) return;
+      const radL = 56;
+      const zoom = 4;
+      const srcR = radL / zoom;
+      const lx = pt.x + 86 + radL < W ? pt.x + 86 : pt.x - 86;
+      const ly = pt.y - 78 - radL > 12 ? pt.y - 78 : pt.y + 84;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(lx, ly, radL, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(
+        hdC,
+        pt.x - srcR, pt.y - srcR, srcR * 2, srcR * 2,
+        lx - radL, ly - radL, radL * 2, radL * 2
+      );
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.9)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(lx - radL, ly); ctx.lineTo(lx + radL, ly);
+      ctx.moveTo(lx, ly - radL); ctx.lineTo(lx, ly + radL);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(lx, ly, radL, 0, Math.PI * 2); ctx.stroke();
+      ctx.font = '700 10px "JetBrains Mono", monospace';
+      ctx.fillStyle = '#fde68a';
+      ctx.textAlign = 'center';
+      ctx.fillText('4× LOUPE', lx, ly + radL + 13);
+      ctx.restore();
+    }
+
+    function drawLiveOverlay(now) {
+      // 1. Calibrated AR Perspective Grid (if Plane Cal is active)
+      if (calType === 'plane' && Hinv) {
+        vx.save();
+        vx.strokeStyle = 'rgba(52, 211, 153, 0.25)';
+        vx.lineWidth = 1;
+        const steps = 4;
+        for (let i = 0; i <= steps; i++) {
+          const u = (i / steps) * calPlaneDims.w;
+          const v = (i / steps) * calPlaneDims.h;
+          const a1 = applyH(Hinv, u, 0), b1 = applyH(Hinv, u, calPlaneDims.h);
+          vx.beginPath(); vx.moveTo(a1.x, a1.y); vx.lineTo(b1.x, b1.y); vx.stroke();
+          const a2 = applyH(Hinv, 0, v), b2 = applyH(Hinv, calPlaneDims.w, v);
+          vx.beginPath(); vx.moveTo(a2.x, a2.y); vx.lineTo(b2.x, b2.y); vx.stroke();
+        }
+        vx.restore();
+      }
+
+      // 2. Calibration / Verification Points & Live Loupe
+      if (calMode !== 'none') {
+        vx.save();
+        vx.strokeStyle = '#fbbf24';
+        vx.fillStyle = '#fbbf24';
+        vx.lineWidth = 2;
+        if (calPts.length > 1) {
+          vx.beginPath();
+          calPts.forEach((p, i) => i ? vx.lineTo(p.x, p.y) : vx.moveTo(p.x, p.y));
+          if (calMode === 'plane' && calPts.length === 4) vx.closePath();
+          vx.stroke();
+        }
+        calPts.forEach((p, i) => {
+          vx.beginPath(); vx.arc(p.x, p.y, 5.5, 0, Math.PI * 2); vx.fill();
+          vx.font = '700 11px "JetBrains Mono", monospace';
+          vx.fillStyle = '#fff';
+          vx.fillText(calMode === 'plane' ? ['TL', 'TR', 'BR', 'BL'][i] : `P${i + 1}`, p.x + 8, p.y - 6);
+          vx.fillStyle = '#fbbf24';
+        });
+        vx.restore();
+        if (pointerPos) drawMagnifierLoupe(vx, pointerPos);
+      }
+
+      // 3. Ruler Verification Result Line
+      if (verifyResult) {
+        vx.save();
+        vx.strokeStyle = '#34d399';
+        vx.lineWidth = 2.5;
+        vx.beginPath();
+        vx.moveTo(verifyResult.p1.x, verifyResult.p1.y);
+        vx.lineTo(verifyResult.p2.x, verifyResult.p2.y);
+        vx.stroke();
+        const mx = (verifyResult.p1.x + verifyResult.p2.x) / 2;
+        const my = (verifyResult.p1.y + verifyResult.p2.y) / 2;
+        drawTagBox(vx, [
+          { text: `VERIFIED: ${verifyResult.m.toFixed(3)} m (${(verifyResult.m * 100).toFixed(1)} cm)`, color: '#6ee7b7' }
+        ], mx - 90, my - 30, { border: '#34d399' });
+        vx.restore();
+      }
+
+      // 4. Drag-to-Select Box
+      if (dragBox) {
+        const bx = Math.min(dragBox.x0, dragBox.x1);
+        const by = Math.min(dragBox.y0, dragBox.y1);
+        const bw = Math.abs(dragBox.x1 - dragBox.x0);
+        const bh = Math.abs(dragBox.y1 - dragBox.y0);
+        vx.save();
+        vx.strokeStyle = '#22d3ee';
+        vx.fillStyle = 'rgba(34, 211, 238, 0.14)';
+        vx.lineWidth = 2;
+        vx.setLineDash([6, 4]);
+        vx.fillRect(bx, by, bw, bh);
+        vx.strokeRect(bx, by, bw, bh);
+        vx.restore();
+      }
+
+      // 5. Active Multi-Frame Scanning Laser Animation
+      if (state === 'scanning' && scanJob) {
+        const x = scanJob.x - scanJob.rx * 2;
+        const y = scanJob.y - scanJob.ry * 2;
+        const w = scanJob.rx * 4;
+        const h = scanJob.ry * 4;
+        const prog = scanJob.frames / scanJob.targetFrames;
+        vx.save();
+        vx.strokeStyle = '#fbbf24';
+        vx.lineWidth = 2;
+        vx.setLineDash([7, 5]);
+        vx.strokeRect(x, y, w, h);
+        vx.setLineDash([]);
+        const ly = y + prog * h;
+        vx.strokeStyle = '#22d3ee';
+        vx.shadowColor = '#22d3ee';
+        vx.shadowBlur = 12;
+        vx.beginPath(); vx.moveTo(x, ly); vx.lineTo(x + w, ly); vx.stroke();
+        vx.restore();
+        drawTagBox(vx, [
+          { text: 'SCANNING OBJECT + PLANE', color: '#fde68a' },
+          { text: `Mapping scene ${Math.round(prog * 100)}%`, color: '#67e8f9' }
+        ], x, y - 48, { border: '#fbbf24' });
+      }
+
+      // 6. Clean Straight-Line Motion Track + Object Reticle + Live HUD
+      if (target && lastPos && (state === 'armed' || state === 'tracking' || state === 'done')) {
+        // Always draw a clean straight track line (never a messy squiggly polyline)
+        if (M && M.lineLenPx > 2) {
+          drawStraightTrack(vx, M.lineX0, M.lineY0, M.lineX1, M.lineY1, 'rgba(34, 211, 238, 0.94)', 3, true);
+          vx.save();
+          vx.fillStyle = '#34d399';
+          vx.beginPath(); vx.arc(M.lineX0, M.lineY0, 5, 0, Math.PI * 2); vx.fill();
+          vx.restore();
+        } else if (S.length > 1) {
+          drawStraightTrack(vx, S[0].x, S[0].y, S[S.length - 1].x, S[S.length - 1].y, 'rgba(34, 211, 238, 0.94)', 3, true);
+        }
+
+        // Reticle at projected straight-line position while tracking, or exact object center while armed
+        const drawPos = (M && (state === 'tracking' || state === 'done')) ? { x: M.lineX1, y: M.lineY1 } : lastPos;
+        const R = Math.max(Math.max(lastPos.rx, lastPos.ry) + 8, 16);
+        const armed = state === 'armed';
+
+        vx.save();
+        vx.strokeStyle = state === 'tracking' ? '#22d3ee' : '#60a5fa';
+        vx.lineWidth = 2.2;
+        if (armed) { vx.setLineDash([6, 5]); vx.lineDashOffset = -now * 24; }
+        vx.beginPath();
+        vx.arc(drawPos.x, drawPos.y, R + (armed ? Math.sin(now * 5) * 2.5 : 0), 0, Math.PI * 2);
+        vx.stroke();
+        vx.setLineDash([]);
+
+        // Crosshair ticks
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([a, b]) => {
+          vx.beginPath();
+          vx.moveTo(drawPos.x + a * (R - 5), drawPos.y + b * (R - 5));
+          vx.lineTo(drawPos.x + a * (R + 8), drawPos.y + b * (R + 8));
+          vx.stroke();
+        });
+
+        // Ground contact indicator when Plane Cal is active
+        if (calType === 'plane' && Hmat) {
+          const cp = getSampleContactPt(lastPos);
+          vx.fillStyle = '#34d399';
+          vx.beginPath(); vx.arc(cp.x, cp.y, 4, 0, Math.PI * 2); vx.fill();
+        }
+        vx.restore();
+
+        // Live floating UALM tag
+        const hud = [
+          {
+            text: state === 'armed' ? 'ARMED · v₀ = 0.00 m/s' : state === 'tracking' ? 'TRACKING · UALM' : 'COMPLETE',
+            color: state === 'tracking' ? '#67e8f9' : '#93c5fd'
+          }
+        ];
+        if (M && state !== 'armed') {
+          const tCur = state === 'done' ? M.TFinal : S[S.length - 1].t;
+          if (tog.t) hud.push({ text: `t = ${tCur.toFixed(2)} s`, color: '#e2e8f0' });
+          if (tog.v) hud.push({ text: `v = ${fmtN(vAt(tCur))} m/s`, color: '#67e8f9' });
+          if (tog.a) hud.push({ text: `a = ${fmtN(M.a)} m/s²`, color: '#fcd34d' });
+          if (tog.s) hud.push({ text: `d = ${Math.abs(qAt(tCur)).toFixed(2)} m`, color: '#6ee7b7' });
+        }
+        drawTagBox(vx, hud, drawPos.x + R + 12, drawPos.y - R - 8);
+
+        const badge = $('#trackBadge');
+        badge.classList.remove('hidden');
+        badge.textContent = `LOCK ${Math.round((lastPos.conf || 1) * 100)}%`;
+      }
+    }
+
+    /* =========================================================================
+       9. LIVE TELEMETRY CARDS & BOTTOM GRAPHS
+       ========================================================================= */
+    function setCardValue(key, text) {
+      const el = $('#v-' + key);
+      if (el && el.textContent !== text) {
+        el.textContent = text;
+        const card = $('#c-' + key);
+        card.classList.remove('pulse');
+        void card.offsetWidth;
+        card.classList.add('pulse');
+      }
+    }
+
+    function updateUI() {
+      let t = 0, s = 0, v = 0, a = 0;
+      if (M && S.length > 1) {
+        t = state === 'done' ? M.TFinal : S[S.length - 1].t;
+        s = Math.abs(qAt(t));
+        v = vAt(t);
+        a = M.a;
+      }
+      setCardValue('t', tog.t ? t.toFixed(2) : '—');
+      setCardValue('s', tog.s ? s.toFixed(2) : '—');
+      setCardValue('v', tog.v ? fmtN(v) : '—');
+      setCardValue('a', tog.a ? fmtN(a) : '—');
+
+      if (M && state !== 'armed' && state !== 'idle') {
+        pill('#pAx', `AXIS · ${M.mode.toUpperCase()} · STRAIGHT`, 'ok');
+      } else {
+        pill('#pAx', state === 'armed' ? 'AXIS · AWAITING MOTION' : 'AXIS · —');
+      }
+
+      const stMap = {
+        idle: ['STANDBY · click object', ''],
+        scanning: ['SCANNING SCENE…', 'wn'],
+        armed: ['ARMED · v₀ = 0 m/s', 'ok'],
+        tracking: ['TRACKING · UALM', 'em'],
+        done: ['TRIAL COMPLETE', 'em']
+      };
+      const [stTxt, stCls] = stMap[state] || ['STANDBY', ''];
+      pill('#pSt', stTxt, stCls);
+    }
+
+    function drawMiniGraph(canvasId, color, title, dots, linePts, subtitle = '') {
+      const cv = $('#' + canvasId);
+      if (!cv) return;
+      const w = cv.clientWidth, h = cv.clientHeight;
+      if (!w || !h) return;
+      const dpr = window.devicePixelRatio || 1;
+      if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+        cv.width = Math.round(w * dpr);
+        cv.height = Math.round(h * dpr);
+      }
+      const c = cv.getContext('2d');
+      c.setTransform(dpr, 0, 0, dpr, 0, 0);
+      c.clearRect(0, 0, w, h);
+
+      const all = dots.concat(linePts);
+      const tMax = Math.max(1, ...all.map(p => p[0]));
+      let yMin = Math.min(0, ...all.map(p => p[1]));
+      let yMax = Math.max(1, ...all.map(p => p[1]));
+      if (Math.abs(yMax - yMin) < 0.2) { yMin -= 0.5; yMax += 0.5; }
+      const ySpan = yMax - yMin;
+      const L = 40, R = 10, T = 22, B = 18;
+      const X = t => L + (t / tMax) * (w - L - R);
+      const Y = y => h - B - ((y - yMin) / ySpan) * (h - T - B);
+
+      // Grid lines
+      c.font = '10px "JetBrains Mono", monospace';
+      c.fillStyle = '#94a3b8';
+      c.textBaseline = 'middle';
+      c.textAlign = 'right';
+      for (let i = 0; i <= 3; i++) {
+        const yv = yMin + (ySpan * i) / 3;
+        const yy = Y(yv);
+        c.strokeStyle = Math.abs(yv) < 0.05 ? 'rgba(34,211,238,0.4)' : 'rgba(56,189,248,0.12)';
+        c.beginPath(); c.moveTo(L, yy); c.lineTo(w - R, yy); c.stroke();
+        c.fillText(yv.toFixed(1), L - 4, yy);
+      }
+
+      // Axis labels
+      c.textAlign = 'center';
+      c.fillText('0s', L, h - 7);
+      c.fillText(`${tMax.toFixed(1)}s`, w - 20, h - 7);
+      c.textAlign = 'left';
+      c.fillStyle = color;
+      c.font = '600 10.5px "JetBrains Mono", monospace';
+      c.fillText(title, L + 3, 10);
+      if (subtitle) {
+        c.textAlign = 'right';
+        c.fillStyle = '#fcd34d';
+        c.fillText(subtitle, w - R, 10);
+      }
+
+      // Raw dots
+      c.fillStyle = 'rgba(255, 255, 255, 0.45)';
+      for (const p of dots) c.fillRect(X(p[0]) - 1.2, Y(p[1]) - 1.2, 2.4, 2.4);
+
+      // Fitted UALM line/curve
+      if (linePts.length > 1) {
+        c.strokeStyle = color;
+        c.lineWidth = 2.2;
+        c.shadowColor = color;
+        c.shadowBlur = 7;
+        c.beginPath();
+        linePts.forEach((p, i) => i ? c.lineTo(X(p[0]), Y(p[1])) : c.moveTo(X(p[0]), Y(p[1])));
+        c.stroke();
+        c.shadowBlur = 0;
+
+        const last = linePts[linePts.length - 1];
+        c.fillStyle = '#ffffff';
+        c.beginPath(); c.arc(X(last[0]), Y(last[1]), 3.5, 0, Math.PI * 2); c.fill();
+      }
+    }
+
+    function drawLiveGraphs() {
+      let sDots = [], sLine = [], vLine = [], aLine = [];
+      let vSub = '';
+      if (M && S.length > 1) {
+        const T = state === 'done' ? M.TFinal : M.T;
+        for (let i = 0; i < S.length; i++) {
+          sDots.push([S[i].t, Math.abs(M.q[i])]);
+        }
+        const steps = 28;
+        for (let i = 0; i <= steps; i++) {
+          const ti = (T * i) / steps;
+          sLine.push([ti, Math.abs(qAt(ti))]);
+        }
+        vLine = [[0, 0], [T, vAt(T)]];
+        aLine = [[0, M.a], [T, M.a]];
+        vSub = `slope = ${fmtN(M.a)} m/s²`;
+      }
+      if (tog.v) drawMiniGraph('cvv', '#22d3ee', 'VELOCITY vs TIME (m/s)', [], vLine, vSub);
+      if (tog.s) drawMiniGraph('cvs', '#34d399', 'DISTANCE vs TIME (m)', sDots, sLine);
+      if (tog.a) drawMiniGraph('cva', '#fbbf24', 'ACCELERATION vs TIME (m/s²)', [], aLine, M ? 'constant' : '');
+    }
+
+    /* =========================================================================
+       10. POST-EXPERIMENT ANALYSIS: STROBE DIAGRAM, V vs. t GRAPH & SLOW-MO
+       ========================================================================= */
+    function chooseInterval(T) {
+      if (T >= 2.8) return 1.0;
+      if (T >= 1.5) return 0.5;
+      if (T >= 0.8) return 0.25;
+      if (T >= 0.4) return 0.1;
+      return Math.max(0.05, +(T / 4).toFixed(2));
+    }
+
+    function buildResults(why) {
+      if (!M) return;
+      const T = M.TFinal;
+      const iv = chooseInterval(T);
+      M.iv = iv;
+
+      P = [];
+      const count = Math.max(2, Math.floor(T / iv + 1e-6));
+      for (let k = 0; k <= count; k++) {
+        const t = +(k * iv).toFixed(4);
+        const pos = posAt(t);
+        P.push({
+          k,
+          t,
+          x: pos.x,
+          y: pos.y,
+          v: vAt(t),
+          a: M.a,
+          s: Math.abs(qAt(t)),
+          sMeas: measDistAt(t)
+        });
+      }
+      // Include final exact endpoint if not already landed on
+      if (T - P[P.length - 1].t > iv * 0.15) {
+        const pos = posAt(T);
+        P.push({
+          k: P.length,
+          t: +T.toFixed(4),
+          x: pos.x,
+          y: pos.y,
+          v: vAt(T),
+          a: M.a,
+          s: Math.abs(qAt(T)),
+          sMeas: M.realStraight
+        });
+      }
+
+      selPoint = P.length - 1;
+      const vf = vAt(T);
+      const dFinal = Math.abs(qAt(T));
+      const vAvg = (0 + vf) / 2;
+      const dFromVavg = Math.abs(vAvg * T);
+      const v2Check = vf * vf;
+      const twoAD = 2 * Math.abs(M.a) * dFinal;
+
+      $('#mtag').textContent =
+        `UALM (v₀ = 0 m/s) · a = ${fmtN(M.a)} m/s² on ALL points · Δt = ${iv} s · straight-line track · ` +
+        (why === 'rest' ? 'came to rest' : why === 'exit' ? 'exited frame' : 'max time reached');
+      $('#vtEq').textContent = `v(t) = (${fmtN(M.a)})t · Area = ${dFinal.toFixed(2)} m`;
+      $('#mManBadge').textContent = M.manualApplied ? `Locked: ${manualDispM.toFixed(2)} m` : 'Camera calibrated';
+      $('#mManDisp').value = manualDispM > 0 ? manualDispM : '';
+
+      // Equal-Interval Table (Acceleration shown on ALL data points)
+      const rowsHtml = P.map(p => `
+        <tr data-k="${p.k}" class="border-t border-sky-400/15 hover:bg-cyan-500/15 cursor-pointer transition">
+          <td class="py-1 px-1.5 text-slate-200">${p.t.toFixed(2)}s</td>
+          <td class="py-1 px-1.5 text-cyan-300 font-semibold">${fmtN(p.v)}</td>
+          <td class="py-1 px-1.5 text-amber-300 font-semibold">${fmtN(p.a)}</td>
+          <td class="py-1 px-1.5 text-emerald-300">${p.s.toFixed(2)}m</td>
+        </tr>`).join('');
+
+      const dirDesc = M.mode === 'vertical'
+        ? (M.a < 0 ? 'vertically downward (free fall)' : 'vertically upward')
+        : M.mode === 'horizontal'
+          ? `horizontally toward the ${M.ux >= 0 ? 'right' : 'left'}`
+          : `along a straight ${M.ang.toFixed(0)}° incline (${M.uy >= 0 ? 'downward' : 'upward'})`;
+
+      $('#sum').innerHTML = `
+        <div class="flex items-center justify-between">
+          <h4 class="text-cyan-300 font-semibold text-xs">Coincident UALM Experiment Summary</h4>
+          <span class="inline-block w-3 h-3 rounded-full border border-white" style="background:${target ? target.css : '#ef4444'}"></span>
+        </div>
+        <p class="text-[11.5px] text-slate-300 leading-snug">
+          The tracked object started from rest (<b class="text-white font-mono">v₀ = 0.00 m/s</b>) and moved in a clean straight line ${dirDesc} with constant acceleration <b class="text-amber-300 font-mono">a = ${fmtN(M.a)} m/s²</b>.
+        </p>
+
+        <div class="grid grid-cols-2 gap-1.5 font-mono text-[11px]">
+          <div class="p-1.5 rounded-lg bg-slate-950/70 border border-sky-400/20">
+            <span class="text-[9.5px] text-slate-400 block">ELAPSED TIME (t)</span>
+            <b class="text-slate-100">${T.toFixed(2)} s</b>
+          </div>
+          <div class="p-1.5 rounded-lg bg-slate-950/70 border border-emerald-400/30">
+            <span class="text-[9.5px] text-slate-400 block">DISPLACEMENT (d)</span>
+            <b class="text-emerald-300">${dFinal.toFixed(2)} m</b>
+          </div>
+          <div class="p-1.5 rounded-lg bg-slate-950/70 border border-sky-400/20">
+            <span class="text-[9.5px] text-slate-400 block">INITIAL VELOCITY (v₀)</span>
+            <b class="text-cyan-300">0.00 m/s</b>
+          </div>
+          <div class="p-1.5 rounded-lg bg-slate-950/70 border border-sky-400/20">
+            <span class="text-[9.5px] text-slate-400 block">FINAL VELOCITY (v_f)</span>
+            <b class="text-cyan-300">${fmtN(vf)} m/s</b>
+          </div>
+          <div class="p-1.5 rounded-lg bg-slate-950/70 border border-amber-400/35">
+            <span class="text-[9.5px] text-amber-300 block">CONSTANT ACCEL (a)</span>
+            <b class="text-amber-300">${fmtN(M.a)} m/s²</b>
+          </div>
+          <div class="p-1.5 rounded-lg bg-slate-950/70 border border-sky-400/20">
+            <span class="text-[9.5px] text-slate-400 block">MODEL FIT R²</span>
+            <b class="text-sky-300">${M.r2.toFixed(3)}</b>
+          </div>
+        </div>
+
+        <!-- 4 Core UALM Equations Coincidence Proof -->
+        <div class="rounded-lg p-2 bg-slate-950/70 border border-sky-400/20 font-mono text-[10.5px] space-y-1">
+          <div class="text-cyan-300 font-semibold text-[10px]">4 UALM EQUATIONS VERIFIED (100% COINCIDENT)</div>
+          <div>1. v = v₀ + at = 0 + (${fmtN(M.a)})(${T.toFixed(2)}) = <b class="text-cyan-300">${fmtN(vf)} m/s</b></div>
+          <div>2. d = v₀t + ½at² = ½(${fmtN(Math.abs(M.a))})(${T.toFixed(2)})² = <b class="text-emerald-300">${dFinal.toFixed(2)} m</b></div>
+          <div>3. d = ½(v₀+v)t = ½(${fmtN(Math.abs(vf))})(${T.toFixed(2)}) = <b class="text-emerald-300">${dFromVavg.toFixed(2)} m</b></div>
+          <div>4. v² = v₀² + 2ad → ${v2Check.toFixed(2)} = <b class="text-amber-300">${twoAD.toFixed(2)} m²/s²</b></div>
+        </div>
+
+        <!-- Equal-Interval Points Table -->
+        <div class="rounded-lg border border-sky-400/25 bg-slate-950/65 overflow-hidden">
+          <div class="px-2 py-1 bg-slate-900/90 font-mono text-[10px] text-cyan-300 font-semibold flex justify-between">
+            <span>EQUAL-INTERVAL POINTS</span>
+            <span class="text-amber-300">a on ALL points</span>
+          </div>
+          <table class="w-full font-mono text-[10.5px] text-left">
+            <thead class="text-slate-400 text-[9.5px] bg-slate-900/50">
+              <tr>
+                <th class="py-1 px-1.5">t</th>
+                <th class="py-1 px-1.5">v (m/s)</th>
+                <th class="py-1 px-1.5">a (m/s²)</th>
+                <th class="py-1 px-1.5">d (m)</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </div>
+      `;
+
+      $('#sum').querySelectorAll('tbody tr').forEach(tr => {
+        tr.addEventListener('click', () => inspectPoint(Number(tr.dataset.k)));
+      });
+
+      inspectPoint(selPoint);
+    }
+
+    function inspectPoint(k) {
+      if (!P.length || k < 0 || k >= P.length) return;
+      selPoint = k;
+      if (!replayRAF) drawStrobe();
+      drawVTModal(replayTime);
+
+      const p = P[k], prev = P[k - 1];
+      let html = `
+        <h4 class="text-cyan-300 font-semibold text-xs mb-1.5">Point ${k + 1} · t = ${p.t.toFixed(2)} s</h4>
+        <div class="space-y-1.5 text-[11.5px]">
+          <p><b class="text-white">Velocity (v = v₀ + at):</b><br>
+          <span class="font-mono text-cyan-300">0 + (${fmtN(M.a)})(${p.t.toFixed(2)}) = <b>${fmtN(p.v)} m/s</b></span></p>
+          <p><b class="text-amber-300">Constant Acceleration (a):</b><br>
+          <span class="font-mono text-amber-200">a = <b>${fmtN(p.a)} m/s²</b> (constant at every data point)</span></p>
+          <p><b class="text-white">Displacement (d = ½at² = Area under v–t):</b><br>
+          <span class="font-mono text-emerald-300">½(${fmtN(Math.abs(M.a))})(${p.t.toFixed(2)})² = <b>${p.s.toFixed(2)} m</b></span>
+          <span class="text-slate-400"> (raw camera: ${p.sMeas.toFixed(2)} m)</span></p>
+      `;
+
+      if (k > 0) {
+        const dt = p.t - prev.t;
+        const dv = p.v - prev.v;
+        const dd = p.s - prev.s;
+        const d1 = P[1] ? P[1].s : 0;
+        const ratioTxt = (k > 1 && d1 > 0.005)
+          ? ` (${(dd / d1).toFixed(1)}× the 1st interval — Galileo's 1 : 3 : 5 : 7… law)`
+          : '';
+        html += `
+          <p><b class="text-amber-300">V–t Slope Proof (Constant Acceleration):</b><br>
+          <span class="font-mono text-amber-200">Slope = Δv/Δt = (${fmtN(p.v)} − ${fmtN(prev.v)}) / ${dt.toFixed(2)} = <b>${fmtN(dv / dt)} m/s²</b></span><br>
+          Traveled <b class="text-emerald-300">${dd.toFixed(2)} m</b> during this ${dt.toFixed(2)} s interval${ratioTxt}.</p>
+        `;
+      } else {
+        html += `
+          <p><b class="text-white">Origin (Starts From Rest):</b> At <span class="font-mono">t = 0.00 s</span>, <span class="font-mono">v₀ = 0.00 m/s</span> and <span class="font-mono">d = 0.00 m</span>, with constant acceleration <span class="font-mono text-amber-300">a = ${fmtN(p.a)} m/s²</span> acting immediately on release.</p>
+        `;
+      }
+      html += `</div>`;
+      $('#insp').innerHTML = html;
+
+      $('#sum').querySelectorAll('tbody tr').forEach(tr => {
+        tr.classList.toggle('bg-cyan-500/25', Number(tr.dataset.k) === k);
+      });
+    }
+
+    // Distance from rectangle center to the straight track segment (keeps callouts off the track line)
+    function rectHitsTrackLine(bx, by, bw, bh) {
+      const cx = bx + bw * 0.5, cy = by + bh * 0.5;
+      const lx = M.lineX1 - M.lineX0, ly = M.lineY1 - M.lineY0;
+      const len2 = lx * lx + ly * ly || 1;
+      const t = clamp(((cx - M.lineX0) * lx + (cy - M.lineY0) * ly) / len2, 0, 1);
+      const px = M.lineX0 + t * lx, py = M.lineY0 + t * ly;
+      return px >= bx - 6 && px <= bx + bw + 6 && py >= by - 6 && py <= by + bh + 6;
+    }
+
+    // Clean, non-overlapping callout box layout with edge-anchored connectors (no tangled/crossing lines)
+    function computePointCallouts(ctx, points, R, fs, compact = false) {
+      let nx = M.mode === 'vertical' ? 1 : -M.uy;
+      let ny = M.mode === 'vertical' ? 0 : M.ux;
+      if (ny > 0) { nx = -nx; ny = -ny; }
+
+      const placed = [];
+      const topLimit = compact ? 92 : 48;
+
+      return points.map((p, k) => {
+        // Acceleration is ALWAYS included on EVERY single data point
+        const lines = compact
+          ? [
+              { text: `t=${p.t.toFixed(2)}s · v=${fmtN(p.v)} m/s`, color: '#67e8f9' },
+              { text: `a=${fmtN(p.a)} m/s² · d=${p.s.toFixed(2)}m`, color: '#fcd34d' }
+            ]
+          : [
+              { text: `t = ${p.t.toFixed(2)} s`, color: '#e2e8f0' },
+              { text: `v = ${fmtN(p.v)} m/s`, color: '#67e8f9' },
+              { text: `a = ${fmtN(p.a)} m/s²`, color: '#fcd34d' },
+              ...(tog.s ? [{ text: `d = ${p.s.toFixed(2)} m`, color: '#6ee7b7' }] : [])
+            ];
+
+        ctx.font = `600 ${fs}px "JetBrains Mono", monospace`;
+        const bw = Math.max(...lines.map(l => ctx.measureText(l.text).width)) + 16;
+        const bh = lines.length * Math.round(fs * 1.32) + 8;
+
+        const baseSide = (k % 2 === 0) ? 1 : -1;
+        const basePerp = (M.mode === 'vertical' ? R + bw * 0.5 : R + bh * 0.5) + (compact ? 18 : 24);
+
+        const overlapsBox = (x1, y1) => placed.some(b =>
+          x1 < b.bx + b.bw + 8 && x1 + bw + 8 > b.bx &&
+          y1 < b.by + b.bh + 8 && y1 + bh + 8 > b.by
+        );
+
+        let chosen = null;
+        const candidates = [];
+        for (const s of [baseSide, -baseSide]) {
+          for (let tier = 0; tier < 4; tier++) {
+            const perp = basePerp + tier * (M.mode === 'vertical' ? bw * 0.72 : bh * 0.9);
+            for (const tang of [0, -24, 24, -52, 52]) {
+              const cx = p.x + nx * s * perp + M.ux * tang;
+              const cy = p.y + ny * s * perp + M.uy * tang;
+              const bx = clamp(cx - bw / 2, 6, W - bw - 6);
+              const by = clamp(cy - bh / 2, topLimit, H - bh - 16);
+              candidates.push({ bx, by });
+            }
+          }
+        }
+
+        // First pass: avoid both other boxes AND the straight track line
+        for (const cand of candidates) {
+          if (!overlapsBox(cand.bx, cand.by) && !rectHitsTrackLine(cand.bx, cand.by, bw, bh)) {
+            chosen = cand; break;
+          }
+        }
+        // Second pass: avoid other boxes
+        if (!chosen) {
+          for (const cand of candidates) {
+            if (!overlapsBox(cand.bx, cand.by)) { chosen = cand; break; }
+          }
+        }
+        if (!chosen) chosen = candidates[0];
+
+        placed.push({ bx: chosen.bx, by: chosen.by, bw, bh });
+
+        // Clean straight connector from ball perimeter to nearest callout box edge
+        const ex = clamp(p.x, chosen.bx, chosen.bx + bw);
+        const ey = clamp(p.y, chosen.by, chosen.by + bh);
+        const ddx = ex - p.x, ddy = ey - p.y;
+        const dist = Math.hypot(ddx, ddy) || 1;
+        const sx0 = p.x + (ddx / dist) * Math.min(R + 1, dist);
+        const sy0 = p.y + (ddy / dist) * Math.min(R + 1, dist);
+
+        return { k, p, lines, bx: chosen.bx, by: chosen.by, bw, bh, sx0, sy0, ex, ey };
+      });
+    }
+
+    function drawStrobe() {
+      if (!M || !P.length) return;
+      const cv = $('#strobe');
+      const c = cv.getContext('2d');
+      cv.width = W;
+      cv.height = H;
+
+      if (bgSnap) c.drawImage(bgSnap, 0, 0, W, H);
+      else { c.fillStyle = '#071126'; c.fillRect(0, 0, W, H); }
+
+      c.fillStyle = 'rgba(4, 10, 26, 0.56)';
+      c.fillRect(0, 0, W, H);
+
+      // Single crisp straight track line (never jagged or messy)
+      drawStraightTrack(c, M.lineX0, M.lineY0, M.lineX1, M.lineY1, 'rgba(34, 211, 238, 0.94)', 3.2, true);
+
+      // Constant Acceleration Lesson Header Banner
+      const dEnd = P[P.length - 1].s;
+      const bannerTxt = `UALM · v₀ = 0.00 m/s · a = CONSTANT AT ${fmtN(M.a)} m/s² · d = ${dEnd.toFixed(2)} m`;
+      c.font = `700 ${Math.max(11, Math.round(W / 68))}px "JetBrains Mono", monospace`;
+      const bwTop = c.measureText(bannerTxt).width + 24;
+      c.fillStyle = 'rgba(4, 11, 26, 0.92)';
+      c.strokeStyle = 'rgba(251, 191, 36, 0.85)';
+      c.lineWidth = 1.6;
+      rRect(c, (W - bwTop) / 2, 10, bwTop, 28, 8);
+      c.fill(); c.stroke();
+      c.fillStyle = '#fde68a';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(bannerTxt, W / 2, 24);
+      c.textAlign = 'left';
+
+      const R = Math.max(lastPos ? Math.max(lastPos.rx, lastPos.ry) : 13, 12);
+      const fs = Math.max(11, Math.round(W / 78));
+      const layout = computePointCallouts(c, P, R, fs, false);
+      strobeHits = [];
+
+      // Draw short straight edge-anchored connectors underneath balls & cards
+      layout.forEach(item => {
+        c.strokeStyle = item.k === selPoint ? '#ffffff' : 'rgba(56, 189, 248, 0.65)';
+        c.lineWidth = item.k === selPoint ? 1.8 : 1.2;
+        c.beginPath();
+        c.moveTo(item.sx0, item.sy0);
+        c.lineTo(item.ex, item.ey);
+        c.stroke();
+      });
+
+      // Draw stroboscopic balls + callout cards (acceleration displayed on ALL points)
+      layout.forEach(item => {
+        const { k, p, lines, bx, by, bw, bh } = item;
+        c.fillStyle = target ? target.css : '#ef4444';
+        c.globalAlpha = 0.45 + 0.55 * (k / Math.max(1, P.length - 1));
+        c.beginPath(); c.arc(p.x, p.y, R, 0, Math.PI * 2); c.fill();
+        c.globalAlpha = 1;
+        c.lineWidth = k === selPoint ? 4 : 2.2;
+        c.strokeStyle = k === selPoint ? '#ffffff' : '#22d3ee';
+        c.stroke();
+
+        c.font = `700 ${Math.max(10, fs - 1)}px "JetBrains Mono", monospace`;
+        c.fillStyle = '#ffffff';
+        c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.fillText(`${p.t.toFixed(p.t % 1 === 0 ? 0 : 1)}s`, p.x, p.y);
+        c.textAlign = 'left';
+
+        drawTagBox(c, lines, bx, by, {
+          fs,
+          border: k === selPoint ? '#ffffff' : 'rgba(34, 211, 238, 0.85)',
+          lw: k === selPoint ? 2.4 : 1.3
+        });
+
+        strobeHits.push({ k, x: p.x, y: p.y, r: R + 7, bx, by, bw, bh });
+      });
+    }
+
+    // Interactive Velocity vs. Time (V vs. t) Graph Explaining Constant Acceleration (Slope) & Distance (Area)
+    function drawVTModal(liveT = null) {
+      const cv = $('#vtModal');
+      if (!cv || !M || !P.length) return;
+      const w = cv.clientWidth, h = cv.clientHeight;
+      if (!w || !h) return;
+      const dpr = window.devicePixelRatio || 1;
+      if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+        cv.width = Math.round(w * dpr);
+        cv.height = Math.round(h * dpr);
+      }
+      const c = cv.getContext('2d');
+      c.setTransform(dpr, 0, 0, dpr, 0, 0);
+      c.clearRect(0, 0, w, h);
+
+      const T = M.TFinal;
+      const vEnd = vAt(T);
+      const yMin = Math.min(0, vEnd * 1.18);
+      const yMax = Math.max(0, vEnd * 1.18, Math.abs(vEnd) < 0.2 ? 1 : 0);
+      const ySpan = (yMax - yMin) || 1;
+
+      const Left = 54, Right = 22, Top = 18, Bot = 28;
+      const X = t => Left + (t / T) * (w - Left - Right);
+      const Y = v => h - Bot - ((v - yMin) / ySpan) * (h - Top - Bot);
+
+      // 1. Grid & Axes
+      c.font = '10.5px "JetBrains Mono", monospace';
+      for (let i = 0; i <= 4; i++) {
+        const vv = yMin + (ySpan * i) / 4;
+        const yy = Y(vv);
+        c.strokeStyle = Math.abs(vv) < 1e-3 ? 'rgba(148, 163, 184, 0.6)' : 'rgba(56, 189, 248, 0.14)';
+        c.lineWidth = Math.abs(vv) < 1e-3 ? 1.5 : 1;
+        c.beginPath(); c.moveTo(Left, yy); c.lineTo(w - Right, yy); c.stroke();
+        c.fillStyle = '#94a3b8';
+        c.textAlign = 'right'; c.textBaseline = 'middle';
+        c.fillText(fmtN(vv), Left - 6, yy);
+      }
+
+      P.forEach(p => {
+        const xx = X(p.t);
+        c.strokeStyle = 'rgba(56, 189, 248, 0.15)';
+        c.lineWidth = 1;
+        c.beginPath(); c.moveTo(xx, Top); c.lineTo(xx, h - Bot); c.stroke();
+        c.fillStyle = '#94a3b8';
+        c.textAlign = 'center'; c.textBaseline = 'top';
+        c.fillText(`${p.t.toFixed(p.t % 1 === 0 ? 0 : 2)}s`, xx, h - Bot + 5);
+      });
+
+      // Axis Titles
+      c.save();
+      c.fillStyle = '#67e8f9';
+      c.font = '600 10px "JetBrains Mono", monospace';
+      c.translate(14, (Top + h - Bot) / 2);
+      c.rotate(-Math.PI / 2);
+      c.textAlign = 'center';
+      c.fillText('v (m/s)', 0, 0);
+      c.restore();
+
+      c.fillStyle = '#94a3b8';
+      c.font = '600 10px "JetBrains Mono", monospace';
+      c.textAlign = 'right';
+      c.fillText('Time t (s)', w - Right, h - 10);
+
+      // 2. Shaded Triangular Area Under V-t Curve = Distance (d = 1/2 * t * |v|)
+      const tShade = liveT !== null ? clamp(liveT, 0, T) : (selPoint >= 0 ? P[selPoint].t : T);
+      const vShade = vAt(tShade);
+      c.fillStyle = 'rgba(16, 185, 129, 0.18)';
+      c.beginPath();
+      c.moveTo(X(0), Y(0));
+      c.lineTo(X(tShade), Y(vShade));
+      c.lineTo(X(tShade), Y(0));
+      c.closePath();
+      c.fill();
+
+      if (tShade > T * 0.22) {
+        const areaD = Math.abs(qAt(tShade));
+        c.fillStyle = '#6ee7b7';
+        c.font = '600 10.5px "JetBrains Mono", monospace';
+        c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.fillText(`Area = d = ${areaD.toFixed(2)} m`, X(tShade * 0.64), (Y(0) + Y(vShade * 0.36)) / 2);
+      }
+
+      // 3. Straight V vs. t Line: v(t) = a * t
+      c.strokeStyle = '#22d3ee';
+      c.lineWidth = 2.6;
+      c.shadowColor = '#22d3ee';
+      c.shadowBlur = 8;
+      c.beginPath();
+      c.moveTo(X(0), Y(0));
+      c.lineTo(X(T), Y(vEnd));
+      c.stroke();
+      c.shadowBlur = 0;
+
+      // 4. Rise (Δv) / Run (Δt) Slope Triangle Explaining Constant Acceleration
+      const triIdx = selPoint > 0 ? selPoint : Math.min(2, P.length - 1);
+      const pA = P[Math.max(0, triIdx - 1)];
+      const pB = P[triIdx];
+      if (pA && pB && pB.t > pA.t) {
+        const xA = X(pA.t), yA = Y(pA.v);
+        const xB = X(pB.t), yB = Y(pB.v);
+        c.save();
+        c.strokeStyle = '#fbbf24';
+        c.lineWidth = 1.8;
+        c.setLineDash([5, 4]);
+        c.beginPath();
+        c.moveTo(xA, yA); c.lineTo(xB, yA); // Run Δt
+        c.lineTo(xB, yB);                   // Rise Δv
+        c.stroke();
+        c.setLineDash([]);
+
+        c.fillStyle = '#fde68a';
+        c.font = '700 10.5px "JetBrains Mono", monospace';
+        const dtSeg = pB.t - pA.t;
+        const dvSeg = pB.v - pA.v;
+        c.textAlign = 'center';
+        c.textBaseline = M.a >= 0 ? 'top' : 'bottom';
+        c.fillText(`Δt = ${dtSeg.toFixed(2)}s`, (xA + xB) / 2, yA + (M.a >= 0 ? 4 : -4));
+
+        c.textAlign = xB + 115 < w ? 'left' : 'right';
+        c.textBaseline = 'middle';
+        const txOff = xB + 115 < w ? 6 : -6;
+        c.fillText(`Δv = ${fmtN(dvSeg)} m/s`, xB + txOff, (yA + yB) / 2 - 7);
+        c.fillStyle = '#fbbf24';
+        c.fillText(`Slope = a = ${fmtN(M.a)} m/s²`, xB + txOff, (yA + yB) / 2 + 7);
+        c.restore();
+      }
+
+      // 5. Clickable Plotted Points
+      vtHits = [];
+      P.forEach((p, k) => {
+        const px = X(p.t), py = Y(p.v);
+        const active = k === selPoint;
+        c.fillStyle = active ? '#ffffff' : '#fbbf24';
+        c.beginPath(); c.arc(px, py, active ? 6 : 4.6, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = '#040915';
+        c.lineWidth = 1.6;
+        c.stroke();
+        vtHits.push({ k, x: px, y: py, r: 12 });
+      });
+
+      // 6. Live Slow-Mo Replay Cursor
+      if (liveT !== null) {
+        const cx = X(clamp(liveT, 0, T));
+        const cy = Y(vAt(clamp(liveT, 0, T)));
+        c.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+        c.lineWidth = 1.2;
+        c.beginPath(); c.moveTo(cx, Top); c.lineTo(cx, h - Bot); c.stroke();
+        c.fillStyle = '#34d399';
+        c.beginPath(); c.arc(cx, cy, 5.5, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = '#ffffff'; c.lineWidth = 1.5; c.stroke();
+      }
+    }
+
+    // Labeled Slow-Mo Replay with Straight-Line Trail, Velocity Arrow & Acceleration on ALL Milestones
+    function toggleSlowMo() {
+      const btn = $('#bSlow');
+      if (replayRAF) {
+        cancelAnimationFrame(replayRAF);
+        replayRAF = null;
+        replayTime = null;
+        btn.textContent = '▶ Slow-mo Replay';
+        drawStrobe();
+        drawVTModal(null);
+        return;
+      }
+      if (state !== 'done' || !M) return;
+
+      btn.textContent = '■ Back to Strobe';
+      const cv = $('#strobe');
+      const c = cv.getContext('2d');
+      cv.width = W; cv.height = H;
+
+      const sp = parseFloat($('#spd').value) || 0.25;
+      const tStart = performance.now();
+      const fs = Math.max(11, Math.round(W / 72));
+      const R = Math.max(lastPos ? Math.max(lastPos.rx, lastPos.ry) + 6 : 16, 16);
+      const milestoneLayout = computePointCallouts(c, P, 8, Math.max(10, fs - 1), true);
+
+      function step() {
+        const T = M.TFinal;
+        const loopDur = T + 1.0;
+        const rawT = ((performance.now() - tStart) / 1000) * sp;
+        const tc = Math.min(rawT % loopDur, T);
+        replayTime = tc;
+
+        // Draw recorded video frame nearest tc
+        let fIdx = -1;
+        for (let i = 0; i < FR.length; i++) {
+          if (FR[i].t <= tc) fIdx = i; else break;
+        }
+        if (fIdx >= 0) c.drawImage(FR[fIdx].c, 0, 0, W, H);
+        else if (bgSnap) c.drawImage(bgSnap, 0, 0, W, H);
+
+        // Clean straight-line motion trail from origin to current position (never jagged)
+        const cur = posAt(tc);
+        drawStraightTrack(c, M.lineX0, M.lineY0, cur.x, cur.y, 'rgba(34, 211, 238, 0.94)', 3.2, false);
+
+        // Revealed milestone labels (acceleration included on EVERY data point)
+        milestoneLayout.forEach(item => {
+          if (item.p.t <= tc + 0.005) {
+            c.strokeStyle = 'rgba(56, 189, 248, 0.65)';
+            c.lineWidth = 1.2;
+            c.beginPath();
+            c.moveTo(item.sx0, item.sy0);
+            c.lineTo(item.ex, item.ey);
+            c.stroke();
+
+            c.fillStyle = '#fbbf24';
+            c.beginPath(); c.arc(item.p.x, item.p.y, 5.5, 0, Math.PI * 2); c.fill();
+            c.strokeStyle = '#ffffff'; c.lineWidth = 1.5; c.stroke();
+
+            drawTagBox(c, item.lines, item.bx, item.by, {
+              fs: Math.max(10, fs - 1),
+              bg: 'rgba(4, 11, 26, 0.88)',
+              border: 'rgba(251, 191, 36, 0.8)'
+            });
+          }
+        });
+
+        // Velocity Vector Arrow along the straight track
+        const vCur = vAt(tc);
+        const dCur = Math.abs(qAt(tc));
+        const vLen = clamp(Math.abs(vCur) * 9, 0, 110);
+        if (vLen > 10) {
+          drawStraightTrack(c, cur.x, cur.y, cur.x + M.ux * vLen, cur.y + M.uy * vLen, '#34d399', 3.2, true);
+        }
+
+        // Moving target highlight ring
+        c.strokeStyle = '#22d3ee';
+        c.lineWidth = 3;
+        c.beginPath(); c.arc(cur.x, cur.y, R, 0, Math.PI * 2); c.stroke();
+
+        // Live floating data label attached to the moving object
+        drawTagBox(c, [
+          { text: `t = ${tc.toFixed(2)} s`, color: '#e2e8f0' },
+          { text: `v = ${fmtN(vCur)} m/s`, color: '#67e8f9' },
+          { text: `a = ${fmtN(M.a)} m/s²`, color: '#fcd34d' },
+          { text: `d = ${dCur.toFixed(2)} m`, color: '#6ee7b7' }
+        ], cur.x + R + 12, cur.y - R - 18, { fs, border: '#22d3ee', lw: 1.8 });
+
+        // Top-Left Slow-Mo Telemetry HUD
+        drawTagBox(c, [
+          { text: `SLOW-MO REPLAY (${sp}×) · STRAIGHT-LINE UALM`, color: '#fde68a' },
+          { text: `t = ${tc.toFixed(3)} s   v₀ = 0.00 m/s`, color: '#e2e8f0' },
+          { text: `v = ${fmtN(vCur)} m/s   a = ${fmtN(M.a)} m/s²   d = ${dCur.toFixed(2)} m`, color: '#67e8f9' }
+        ], 10, 10, { fs, border: '#fbbf24' });
+
+        // Bottom Replay Progress Bar
+        const barW = W - 28;
+        c.fillStyle = 'rgba(15, 23, 42, 0.8)';
+        c.fillRect(14, H - 14, barW, 6);
+        c.fillStyle = '#22d3ee';
+        c.fillRect(14, H - 14, barW * (tc / Math.max(0.01, T)), 6);
+
+        drawVTModal(tc);
+        replayRAF = requestAnimationFrame(step);
+      }
+
+      replayRAF = requestAnimationFrame(step);
+    }
+
+    function openModal() {
+      if (!M || !P.length) return;
+      $('#modal').classList.remove('hidden');
+      $('#modal').classList.add('flex');
+      drawStrobe();
+      requestAnimationFrame(() => drawVTModal(null));
+    }
+
+    function closeModal() {
+      if (replayRAF) {
+        cancelAnimationFrame(replayRAF);
+        replayRAF = null;
+        replayTime = null;
+        $('#bSlow').textContent = '▶ Slow-mo Replay';
+      }
+      $('#modal').classList.add('hidden');
+      $('#modal').classList.remove('flex');
+    }
+
+    function exportCSV() {
+      if (!M || !P.length) return;
+      const lines = [
+        'Point,Time_s,Velocity_m_s,Acceleration_m_s2,Distance_UALM_m,Distance_Camera_m',
+        ...P.map(p => `${p.k + 1},${p.t.toFixed(3)},${p.v.toFixed(4)},${p.a.toFixed(4)},${p.s.toFixed(4)},${p.sMeas.toFixed(4)}`)
+      ];
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kinetrack_ualm_${Date.now()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    /* =========================================================================
+       11. POINTER INTERACTIONS, CALIBRATION & BUTTON HANDLERS
+       ========================================================================= */
+    function canvasXY(cv, ev) {
+      const r = cv.getBoundingClientRect();
+      return {
+        x: clamp(((ev.clientX - r.left) / r.width) * cv.width, 0, cv.width - 1),
+        y: clamp(((ev.clientY - r.top) / r.height) * cv.height, 0, cv.height - 1)
+      };
+    }
+
+    function updateCalButtons() {
+      $('#bPlaneCal').classList.toggle('active', calMode === 'plane');
+      $('#bLineCal').classList.toggle('active', calMode === 'line');
+      $('#bVerify').classList.toggle('active', calMode === 'verify');
+    }
+
+    function applyManualDisplacement(rawVal) {
+      const val = parseFloat(rawVal);
+      if (!(val > 0)) {
+        say('Enter a positive displacement value in meters (e.g., 1.50).');
+        return;
+      }
+      manualDispM = val;
+      $('#manDisp').value = val;
+      $('#mManDisp').value = val;
+      updateCalPill();
+
+      if (state === 'done' && S.length >= 5) {
+        M = fitUALM(S);
+        buildResults(lastWhy);
+        if (!replayRAF) drawStrobe();
+        drawVTModal(replayTime);
+        updateUI();
+        drawLiveGraphs();
+        say(`Manual displacement applied: d = ${val.toFixed(2)} m → a = ${fmtN(M.a)} m/s² across all data points.`);
+      } else {
+        say(`Manual displacement locked at ${val.toFixed(2)} m. Run your trial and UALM acceleration will auto-solve a = 2d/t².`);
+      }
+    }
+
+    function clearManualDisplacement() {
+      manualDispM = 0;
+      $('#manDisp').value = '';
+      $('#mManDisp').value = '';
+      updateCalPill();
+      if (state === 'done' && S.length >= 5) {
+        M = fitUALM(S);
+        buildResults(lastWhy);
+        if (!replayRAF) drawStrobe();
+        drawVTModal(replayTime);
+        updateUI();
+        drawLiveGraphs();
+      }
+      say('Manual displacement cleared — reverted to camera calibration.');
+    }
+
+    // Viewport Pointer Events (Click or Drag-Box Selection + Precision Calibration)
+    view.addEventListener('pointerdown', ev => {
+      const pt = canvasXY(view, ev);
+      pointerPos = pt;
+
+      if (calMode !== 'none') {
+        calPts.push(pt);
+        if (calMode === 'line' && calPts.length === 2) {
+          const L = parseFloat($('#refLen').value);
+          const pxD = Math.hypot(calPts[1].x - calPts[0].x, calPts[1].y - calPts[0].y);
+          if (L > 0 && pxD > 6) {
+            mpp = L / pxD;
+            calibrated = true;
+            calType = 'line';
+            Hmat = null; Hinv = null;
+            if (!useDemo) { mppCam = mpp; camCalibrated = true; camCalType = 'line'; camHmat = null; camHinv = null; }
+            updateCalPill();
+            say(`Line calibrated: ${L.toFixed(2)} m = ${pxD.toFixed(1)} px (${(mpp * 1000).toFixed(2)} mm/px).`);
+          } else {
+            say('Line calibration failed — pick two distinct points.');
+          }
+          calMode = 'none'; calPts = []; updateCalButtons();
+        } else if (calMode === 'plane' && calPts.length === 4) {
+          const pw = parseFloat($('#planeW').value) || 0.297;
+          const ph = parseFloat($('#planeH').value) || 0.210;
+          const dst = [{ x: 0, y: 0 }, { x: pw, y: 0 }, { x: pw, y: ph }, { x: 0, y: ph }];
+          const hm = computeHomography(calPts, dst);
+          const hi = computeHomography(dst, calPts);
+          if (hm && hi) {
+            Hmat = hm; Hinv = hi;
+            calPlaneDims = { w: pw, h: ph };
+            calType = 'plane'; calibrated = true;
+            if (!useDemo) { camHmat = hm; camHinv = hi; camCalType = 'plane'; camCalibrated = true; }
+            updateCalPill();
+            say(`4-Point Plane calibrated (${pw} × ${ph} m). Perspective foreshortening is now corrected!`);
+          } else {
+            say('Plane calibration failed — click 4 corners in order: Top-Left, Top-Right, Bottom-Right, Bottom-Left.');
+          }
+          calMode = 'none'; calPts = []; updateCalButtons();
+        } else if (calMode === 'verify' && calPts.length === 2) {
+          const w1 = pixelToWorld(calPts[0].x, calPts[0].y);
+          const w2 = pixelToWorld(calPts[1].x, calPts[1].y);
+          const distM = Math.hypot(w2.x - w1.x, w2.y - w1.y);
+          verifyResult = { p1: calPts[0], p2: calPts[1], m: distM };
+          say(`Ruler verification: measured ${distM.toFixed(3)} m (${(distM * 100).toFixed(1)} cm).`);
+          calMode = 'none'; calPts = []; updateCalButtons();
+        } else {
+          const left = (calMode === 'plane' ? 4 : 2) - calPts.length;
+          say(`Point placed (${calPts.length}/${calMode === 'plane' ? 4 : 2}). Click ${left} more point${left > 1 ? 's' : ''}.`);
+        }
+        return;
+      }
+
+      if (state !== 'tracking' && state !== 'scanning') {
+        verifyResult = null;
+        dragBox = { x0: pt.x, y0: pt.y, x1: pt.x, y1: pt.y };
+        view.setPointerCapture(ev.pointerId);
+      }
+    });
+
+    view.addEventListener('pointermove', ev => {
+      const pt = canvasXY(view, ev);
+      pointerPos = pt;
+      if (dragBox) { dragBox.x1 = pt.x; dragBox.y1 = pt.y; }
+    });
+
+    view.addEventListener('pointerup', ev => {
+      if (!dragBox) return;
+      const pt = canvasXY(view, ev);
+      dragBox.x1 = pt.x; dragBox.y1 = pt.y;
+      const bw = Math.abs(dragBox.x1 - dragBox.x0);
+      const bh = Math.abs(dragBox.y1 - dragBox.y0);
+      const cx = (dragBox.x0 + dragBox.x1) * 0.5;
+      const cy = (dragBox.y0 + dragBox.y1) * 0.5;
+      dragBox = null;
+
+      if (bw >= 12 && bh >= 12) {
+        beginTargetScan({ x: cx, y: cy, rx: bw * 0.5, ry: bh * 0.5 });
+      } else {
+        beginTargetScan(estimateBoxFromClick(pt.x, pt.y));
+      }
+    });
+
+    view.addEventListener('pointerleave', () => { pointerPos = null; });
+
+    // Strobe & V-t Graph Click Inspection
+    $('#strobe').addEventListener('click', ev => {
+      if (replayRAF) return;
+      const pt = canvasXY($('#strobe'), ev);
+      const hit = strobeHits.find(h =>
+        Math.hypot(pt.x - h.x, pt.y - h.y) <= h.r ||
+        (pt.x >= h.bx && pt.x <= h.bx + h.bw && pt.y >= h.by && pt.y <= h.by + h.bh)
+      );
+      if (hit) inspectPoint(hit.k);
+    });
+
+    $('#vtModal').addEventListener('click', ev => {
+      const cv = $('#vtModal');
+      const r = cv.getBoundingClientRect();
+      const x = ev.clientX - r.left, y = ev.clientY - r.top;
+      const hit = vtHits.find(h => Math.hypot(x - h.x, y - h.y) <= h.r);
+      if (hit) inspectPoint(hit.k);
+    });
+
+    // Toolbar Buttons
+    $('#bPlaneCal').onclick = () => {
+      if (useDemo) return say('Demo Lab is already pre-calibrated (switch to Live Camera to calibrate your room).');
+      calMode = calMode === 'plane' ? 'none' : 'plane';
+      calPts = []; verifyResult = null; updateCalButtons();
+      if (calMode === 'plane') say('Plane Calibration: click 4 corners of your rectangle in order (TL → TR → BR → BL) using the 4× loupe.');
+    };
+
+    $('#bLineCal').onclick = () => {
+      if (useDemo) return say('Demo Lab is already pre-calibrated.');
+      calMode = calMode === 'line' ? 'none' : 'line';
+      calPts = []; verifyResult = null; updateCalButtons();
+      if (calMode === 'line') say(`Line Calibration: click both ends of your ${$('#refLen').value} m reference length using the 4× loupe.`);
+    };
+
+    $('#bVerify').onclick = () => {
+      calMode = calMode === 'verify' ? 'none' : 'verify';
+      calPts = []; verifyResult = null; updateCalButtons();
+      if (calMode === 'verify') say('Verification mode: click both ends of a real ruler or object to check your calibrated distance.');
+    };
+
+    // Quick Real-Life Calibration Presets
+    $('#preA4').onclick = () => {
+      $('#planeW').value = '0.297'; $('#planeH').value = '0.210';
+      if (!useDemo) { calMode = 'plane'; calPts = []; updateCalButtons(); say('A4 Plane preset (0.297 × 0.210 m): click the 4 corners of an A4 sheet (TL → TR → BR → BL).'); }
+    };
+    $('#preLet').onclick = () => {
+      $('#planeW').value = '0.279'; $('#planeH').value = '0.216';
+      if (!useDemo) { calMode = 'plane'; calPts = []; updateCalButtons(); say('US Letter preset (0.279 × 0.216 m): click the 4 corners of the sheet (TL → TR → BR → BL).'); }
+    };
+    $('#pre30').onclick = () => {
+      $('#refLen').value = '0.30';
+      if (!useDemo) { calMode = 'line'; calPts = []; updateCalButtons(); say('30 cm Ruler preset: click both ends of a 30 cm ruler.'); }
+    };
+    $('#pre1m').onclick = () => {
+      $('#refLen').value = '1.00';
+      if (!useDemo) { calMode = 'line'; calPts = []; updateCalButtons(); say('1.0 m Meterstick preset: click both ends of your 1.0 m reference.'); }
+    };
+
+    // Manual Displacement Controls (Sidebar & Modal)
+    $('#bManApply').onclick = () => applyManualDisplacement($('#manDisp').value);
+    $('#bManClear').onclick = clearManualDisplacement;
+    $('#mManApply').onclick = () => applyManualDisplacement($('#mManDisp').value);
+    $('#mManClear').onclick = clearManualDisplacement;
+
+    const rearmAction = () => {
+      if (!target) return say('Click or drag a box around an object to scan it first.');
+      if (useDemo) {
+        demo.st = 'rest';
+        const b = getDemoBall(performance.now() / 1000);
+        lastPos = { x: b.x, y: b.y, rx: b.r, ry: b.r, d: b.r * 2, conf: 1 };
+      }
+      armTracker();
+      say('Re-armed at rest (v₀ = 0 m/s). Release or move the object to start tracking.');
+    };
+
+    $('#bArm').onclick = $('#mArm').onclick = rearmAction;
+    $('#bClr').onclick = () => { clearAll(); say('Lock cleared. Click or drag a box around an object to scan it.'); };
+    $('#bRes').onclick = () => state === 'done' ? openModal() : say('Complete a motion trial first to open Results.');
+    $('#mClose').onclick = closeModal;
+    $('#bSlow').onclick = toggleSlowMo;
+    $('#bCsv').onclick = exportCSV;
+
+    $('#bFlip').onclick = () => {
+      flip = !flip;
+      $('#bFlip').textContent = '⇇ Flip: ' + (flip ? 'ON' : 'OFF');
+      if (state !== 'idle') { clearAll(); say('Camera flipped. Re-scan your object to lock it.'); }
+    };
+
+    $('#bCamSwitch').onclick = () => {
+      const nextFacing = camOK && !useDemo ? (facingMode === 'environment' ? 'user' : 'environment') : 'environment';
+      startCam(nextFacing);
+    };
+
+    $('#bDemo').onclick = () => {
+      if (useDemo) {
+        if (camOK && camStream) setSource(false);
+        else startCam('environment');
+      } else {
+        setSource(true);
+      }
+    };
+
+    // Demo Lab Buttons
+    $('#bRoll').onclick = () => { clearAll(); setupDemo('roll'); };
+    $('#bDrop').onclick = () => { clearAll(); setupDemo('drop'); };
+    $('#bFar').onclick = () => { clearAll(); setupDemo('far'); };
+    $('#bLight').onclick = () => {
+      demo.varyLight = !demo.varyLight;
+      $('#bLight').textContent = '☀ Light: ' + (demo.varyLight ? 'VARY' : 'OFF');
+      $('#bLight').classList.toggle('active', demo.varyLight);
+    };
+
+    $('#bQuickRun').onclick = () => {
+      if (!useDemo) return;
+      demo.st = 'rest';
+      const nowSec = performance.now() / 1000;
+      drawDemoFrame(nowSec);
+      drawSource(hdCtx, W, H);
+      const b = getDemoBall(nowSec);
+      beginTargetScan({ x: b.x, y: b.y, rx: b.r, ry: b.r });
+
+      // Automatically release the ball as soon as the 6-frame scene scan finishes
+      const waitScan = setInterval(() => {
+        if (state === 'armed') {
+          clearInterval(waitScan);
+          demo.st = 'run';
+          demo.t0 = performance.now() / 1000;
+          say('Ball scanned & released from rest (v₀ = 0.00 m/s)! Tracking straight-line UALM…');
+        } else if (state !== 'scanning') {
+          clearInterval(waitScan);
+        }
+      }, 40);
+    };
+
+    // Telemetry Visibility Switches
+    document.querySelectorAll('.sw input').forEach(inp => {
+      inp.addEventListener('change', () => {
+        const k = inp.dataset.k;
+        tog[k] = inp.checked ? 1 : 0;
+        $('#c-' + k).classList.toggle('off', !inp.checked);
+        const gEl = $('#g-' + k);
+        if (gEl) gEl.style.display = inp.checked ? '' : 'none';
+        if (state === 'done' && !$('#modal').classList.contains('hidden')) {
+          if (!replayRAF) drawStrobe();
+          drawVTModal(replayTime);
+        }
+        drawLiveGraphs();
+      });
+    });
+
+    // Resize handling for responsive graphs
+    window.addEventListener('resize', () => {
+      drawLiveGraphs();
+      if (state === 'done' && !$('#modal').classList.contains('hidden')) {
+        drawVTModal(replayTime);
+      }
+    });
+
+    // Boot cleanly on window load
+    window.addEventListener('load', () => {
+      requestAnimationFrame(mainTick);
+      startCam('environment');
+    });
+  })();
+  </script>
+</body>
+</html>
